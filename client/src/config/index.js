@@ -58,24 +58,10 @@ export const addProductFormElements = [
     name: "category",
     componentType: "select",
     options: [
-      { id: "men", label: "Men" },
-      { id: "women", label: "Women" },
-      { id: "kids", label: "Kids" },
+      { id: "strength-training", label: "Strength Training" },
+      { id: "cardio-equipment", label: "Cardio Equipment" },
+      { id: "weight-training", label: "Weight Training" },
       { id: "accessories", label: "Accessories" },
-      { id: "footwear", label: "Footwear" },
-    ],
-  },
-  {
-    label: "Brand",
-    name: "brand",
-    componentType: "select",
-    options: [
-      { id: "nike", label: "Nike" },
-      { id: "adidas", label: "Adidas" },
-      { id: "puma", label: "Puma" },
-      { id: "levi", label: "Levi's" },
-      { id: "zara", label: "Zara" },
-      { id: "h&m", label: "H&M" },
     ],
   },
   {
@@ -113,31 +99,6 @@ export const shoppingViewHeaderMenuItems = [
     path: "/shop/listing",
   },
   {
-    id: "men",
-    label: "Men",
-    path: "/shop/listing",
-  },
-  {
-    id: "women",
-    label: "Women",
-    path: "/shop/listing",
-  },
-  {
-    id: "kids",
-    label: "Kids",
-    path: "/shop/listing",
-  },
-  {
-    id: "footwear",
-    label: "Footwear",
-    path: "/shop/listing",
-  },
-  {
-    id: "accessories",
-    label: "Accessories",
-    path: "/shop/listing",
-  },
-  {
     id: "search",
     label: "Search",
     path: "/shop/search",
@@ -145,37 +106,18 @@ export const shoppingViewHeaderMenuItems = [
 ];
 
 export const categoryOptionsMap = {
-  men: "Men",
-  women: "Women",
-  kids: "Kids",
-  accessories: "Accessories",
-  footwear: "Footwear",
-};
-
-export const brandOptionsMap = {
-  nike: "Nike",
-  adidas: "Adidas",
-  puma: "Puma",
-  levi: "Levi",
-  zara: "Zara",
-  "h&m": "H&M",
+  "strength-training": "Strength Training",
+  "cardio-equipment": "Cardio Equipment",
+  "weight-training": "Weight Training",
+  "accessories": "Accessories",
 };
 
 export const filterOptions = {
   category: [
-    { id: "men", label: "Men" },
-    { id: "women", label: "Women" },
-    { id: "kids", label: "Kids" },
+    { id: "strength-training", label: "Strength Training" },
+    { id: "cardio-equipment", label: "Cardio Equipment" },
+    { id: "weight-training", label: "Weight Training" },
     { id: "accessories", label: "Accessories" },
-    { id: "footwear", label: "Footwear" },
-  ],
-  brand: [
-    { id: "nike", label: "Nike" },
-    { id: "adidas", label: "Adidas" },
-    { id: "puma", label: "Puma" },
-    { id: "levi", label: "Levi's" },
-    { id: "zara", label: "Zara" },
-    { id: "h&m", label: "H&M" },
   ],
 };
 

@@ -23,6 +23,24 @@ export const registerUser = createAsyncThunk(
   }
 );
 
+// Verify OTP action
+export const verifyOtp = createAsyncThunk(
+  "auth/verifyOtp",
+  async ({ email, otp }, thunkAPI) => {
+    try {
+      const res = await axios.post(
+        "http://localhost:5000/api/auth/verify",
+        { email, otp },
+        { withCredentials: true }
+      );
+      
+      return res.data;
+    } catch (err) {
+      return thunkAPI.rejectWithValue(err.response.data);
+    }
+  }
+);
+
 export const loginUser = createAsyncThunk(
   "/auth/login",
 

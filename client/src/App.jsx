@@ -74,21 +74,24 @@ function App() {
           <Route path="features" element={<AdminFeatures />} />
         </Route>
         <Route
-          path="/shop"
-          element={
-            <CheckAuth isAuthenticated={isAuthenticated} user={user}>
-              <ShoppingLayout />
-            </CheckAuth>
-          }
-        >
-          <Route path="home" element={<ShoppingHome />} />
-          <Route path="listing" element={<ShoppingListing />} />
-          <Route path="checkout" element={<ShoppingCheckout />} />
-          <Route path="account" element={<ShoppingAccount />} />
-          <Route path="paypal-return" element={<PaypalReturnPage />} />
-          <Route path="payment-success" element={<PaymentSuccessPage />} />
-          <Route path="search" element={<SearchProducts />} />
-        </Route>
+    path="/shop"
+    element={
+      <CheckAuth isAuthenticated={isAuthenticated} user={user}>
+        <ShoppingLayout />
+      </CheckAuth>
+    }
+  >
+    <Route path="home" element={<ShoppingHome />} />
+    <Route path="listing" element={<ShoppingListing />} />
+    <Route path="checkout" element={<ShoppingCheckout />} />
+    <Route path="account" element={<ShoppingAccount />} />
+    <Route path="paypal-return" element={<PaypalReturnPage />} />
+    <Route path="payment-success" element={<PaymentSuccessPage />} />
+    <Route path="search" element={<SearchProducts />} />
+  </Route>
+  
+  {/* Add this new route for top-level search */}
+        <Route path="/search" element={<SearchProducts />} />
         <Route path="/unauth-page" element={<UnauthPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

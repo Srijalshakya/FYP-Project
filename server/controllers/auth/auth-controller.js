@@ -1,7 +1,9 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../../models/User");
+const sendOtpMail = require("../../utils/sendOtpMail");
 
+//register
 //register
 const registerUser = async (req, res) => {
   const { userName, email, password } = req.body;
@@ -15,23 +17,53 @@ const registerUser = async (req, res) => {
       });
 
     const hashPassword = await bcrypt.hash(password, 12);
+    const otp = Math.floor(100000 + Math.random() * 900000); // 6-digit code
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min from now
+
     const newUser = new User({
       userName,
       email,
       password: hashPassword,
+      otp: { code: otp, expiresAt },
     });
 
     await newUser.save();
+    await sendOtpMail(email, otp);
+
     res.status(200).json({
       success: true,
-      message: "Registration successful",
+      message: "OTP sent to your email. Please verify.",
     });
   } catch (e) {
     console.log(e);
     res.status(500).json({
       success: false,
-      message: "Some error occured",
+      message: "Some error occurred during registration",
     });
+  }
+}; // <-- add this closing bracket
+
+const verifyOtp = async (req, res) => {
+  const { email, otp } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user || user.isVerified) {
+      return res.status(400).json({ success: false, message: "Invalid request" });
+    }
+
+    if (user.otp.code !== otp || user.otp.expiresAt < new Date()) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+    }
+
+    user.isVerified = true;
+    user.otp = undefined;
+    await user.save();
+
+    res.status(200).json({ success: true, message: "Email verified successfully!" });
+  } catch (e) {
+    console.log(e);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -46,6 +78,12 @@ const loginUser = async (req, res) => {
         success: false,
         message: "User doesn't exists! Please register first",
       });
+
+      if (!checkUser.isVerified)
+        return res.json({
+          success: false,
+          message: "Please verify your email before logging in.",
+        });
 
     const checkPasswordMatch = await bcrypt.compare(
       password,
@@ -117,4 +155,4 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-module.exports = { registerUser, loginUser, logoutUser, authMiddleware };
+module.exports = { registerUser, loginUser, logoutUser, authMiddleware, verifyOtp, };

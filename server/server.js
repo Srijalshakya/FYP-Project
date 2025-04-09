@@ -14,7 +14,6 @@ const shopSearchRouter = require("./routes/shop/search-routes");
 const shopReviewRouter = require("./routes/shop/review-routes");
 const commonFeatureRouter = require("./routes/common/feature-routes");
 
-
 // Verify environment variables are being read
 console.log('MongoDB URI:', process.env.MONGO_URI);
 console.log('Cloudinary Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME);
@@ -27,32 +26,35 @@ mongoose
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-const allowedOrigins = ['http://localhost:5173', 'https://your-production-domain.com'];
+// Updated allowed origins to include both ports common for React development
+const allowedOrigins = [
+  'http://localhost:5173',  // Vite default
+  'http://localhost:3000',  // Create React App default
+  'http://127.0.0.1:5173',  // Alternative Vite URL
+  'https://your-production-domain.com'
+];
 
+// CORS configuration - Simplified and made more robust
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
+        console.log("Origin blocked by CORS:", origin);
         callback(new Error('Not allowed by CORS'));
       }
     },
-    methods: ["GET", "POST", "DELETE", "PUT"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "Cache-Control",
-      "Expires",
-      "Pragma",
-    ],
-    credentials: true,
+    credentials: true // This is crucial for cookies
   })
 );
 
+// Cookie parser middleware - BEFORE routes
 app.use(cookieParser());
 app.use(express.json());
 
+// Now set up routes
 const apiRouter = express.Router();
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/admin/products", adminProductsRouter);
@@ -67,6 +69,7 @@ apiRouter.use("/common/feature", commonFeatureRouter);
 
 app.use("/api", apiRouter);
 
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
