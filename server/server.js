@@ -13,11 +13,19 @@ const shopOrderRouter = require("./routes/shop/order-routes");
 const shopSearchRouter = require("./routes/shop/search-routes");
 const shopReviewRouter = require("./routes/shop/review-routes");
 const commonFeatureRouter = require("./routes/common/feature-routes");
+const khalti = require("./controllers/shop/initializekhalti");
 
 // Verify environment variables are being read
-console.log('MongoDB URI:', process.env.MONGO_URI);
-console.log('Cloudinary Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME);
+console.log('MongoDB URI:', process.env.MONGO_URI ? 'Set (hidden for security)' : 'NOT SET');
+console.log('Cloudinary Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME || 'NOT SET');
+console.log('Email Provider:', process.env.EMAIL_USER ? 'Set (hidden for security)' : 'NOT SET'); 
 
+// Verify essential email variables for OTP functionality
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.warn('WARNING: EMAIL_USER or EMAIL_PASS environment variables not set. OTP email functionality will not work!');
+}
+
+// Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected"))
@@ -34,7 +42,7 @@ const allowedOrigins = [
   'https://your-production-domain.com'
 ];
 
-// CORS configuration - Simplified and made more robust
+// CORS configuration - Fixed to properly handle preflight requests
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -46,13 +54,34 @@ app.use(
         callback(new Error('Not allowed by CORS'));
       }
     },
-    credentials: true // This is crucial for cookies
+    credentials: true, // This is crucial for cookies
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type", 
+      "Authorization", 
+      "Origin", 
+      "X-Requested-With", 
+      "Accept", 
+      "Cache-Control",
+      "X-CSRF-Token"
+    ]
   })
 );
 
+// Increase JSON payload limit for file uploads if needed
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
 // Cookie parser middleware - BEFORE routes
 app.use(cookieParser());
-app.use(express.json());
+
+// Request logging in development
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.originalUrl}`);
+    next();
+  });
+}
 
 // Now set up routes
 const apiRouter = express.Router();
@@ -66,17 +95,28 @@ apiRouter.use("/shop/order", shopOrderRouter);
 apiRouter.use("/shop/search", shopSearchRouter);
 apiRouter.use("/shop/review", shopReviewRouter);
 apiRouter.use("/common/feature", commonFeatureRouter);
-
+apiRouter.use("/payment", khalti);
 app.use("/api", apiRouter);
+
+// Add a health check endpoint
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
+  res.status(500).json({ 
+    success: false,
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV !== 'production' ? err.message : undefined
+  });
 });
 
+// Start server
 app.listen(PORT, () => console.log(`Server is now running on port ${PORT}`));
 
+// Graceful shutdown
 process.on('SIGINT', () => {
   mongoose.connection.close(() => {
     console.log('MongoDB connection closed due to app termination');

@@ -33,9 +33,24 @@ function App() {
     dispatch(checkAuth());
   }, [dispatch]);
 
-  if (isLoading) return <Skeleton className="w-[800] bg-black h-[600px]" />;
+  // Show loading skeleton only during initial load
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center w-full h-screen bg-background">
+        <div className="space-y-4 w-[800px]">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-64 w-full" />
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  console.log(isLoading, user);
+  // For debugging only - remove in production
+  console.log("Auth state:", { isAuthenticated, user });
 
   return (
     <div className="flex flex-col overflow-hidden bg-white">
@@ -74,23 +89,23 @@ function App() {
           <Route path="features" element={<AdminFeatures />} />
         </Route>
         <Route
-    path="/shop"
-    element={
-      <CheckAuth isAuthenticated={isAuthenticated} user={user}>
-        <ShoppingLayout />
-      </CheckAuth>
-    }
-  >
-    <Route path="home" element={<ShoppingHome />} />
-    <Route path="listing" element={<ShoppingListing />} />
-    <Route path="checkout" element={<ShoppingCheckout />} />
-    <Route path="account" element={<ShoppingAccount />} />
-    <Route path="paypal-return" element={<PaypalReturnPage />} />
-    <Route path="payment-success" element={<PaymentSuccessPage />} />
-    <Route path="search" element={<SearchProducts />} />
-  </Route>
-  
-  {/* Add this new route for top-level search */}
+          path="/shop"
+          element={
+            <CheckAuth isAuthenticated={isAuthenticated} user={user}>
+              <ShoppingLayout />
+            </CheckAuth>
+          }
+        >
+          <Route path="home" element={<ShoppingHome />} />
+          <Route path="listing" element={<ShoppingListing />} />
+          <Route path="checkout" element={<ShoppingCheckout />} />
+          <Route path="account" element={<ShoppingAccount />} />
+          <Route path="paypal-return" element={<PaypalReturnPage />} />
+          <Route path="payment-success" element={<PaymentSuccessPage />} />
+          <Route path="search" element={<SearchProducts />} />
+        </Route>
+
+        {/* Add this new route for top-level search */}
         <Route path="/search" element={<SearchProducts />} />
         <Route path="/unauth-page" element={<UnauthPage />} />
         <Route path="*" element={<NotFound />} />

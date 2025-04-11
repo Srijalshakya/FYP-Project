@@ -12,11 +12,14 @@ import {
 import AddressCard from "./address-card";
 import { useToast } from "../ui/use-toast";
 
+// Make sure your address form config has a notes field
+// If not, update your addressFormControls in the config file
 const initialAddressFormData = {
   address: "",
   city: "",
   phone: "",
   pincode: "",
+  notes: "No additional notes" // Default value to satisfy backend requirement
 };
 
 function Address({ setCurrentSelectedAddress, selectedId }) {
@@ -30,92 +33,145 @@ function Address({ setCurrentSelectedAddress, selectedId }) {
   function handleManageAddress(event) {
     event.preventDefault();
 
-    if (addressList.length >= 3 && currentEditedId === null) {
+    if (addressList?.length >= 3 && currentEditedId === null) {
       setFormData(initialAddressFormData);
       toast({
         title: "You can add max 3 addresses",
         variant: "destructive",
       });
-
       return;
     }
 
-    currentEditedId !== null
-      ? dispatch(
-          editaAddress({
-            userId: user?.id,
-            addressId: currentEditedId,
-            formData,
-          })
-        ).then((data) => {
-          if (data?.payload?.success) {
-            dispatch(fetchAllAddresses(user?.id));
-            setCurrentEditedId(null);
-            setFormData(initialAddressFormData);
-            toast({
-              title: "Address updated successfully",
-            });
-          }
+    // Make sure notes is included with a default if empty
+    const updatedFormData = {
+      ...formData,
+      notes: formData.notes || "No additional notes"
+    };
+
+    if (currentEditedId !== null) {
+      dispatch(
+        editaAddress({
+          userId: user?.id,
+          addressId: currentEditedId,
+          formData: updatedFormData,
         })
-      : dispatch(
-          addNewAddress({
-            ...formData,
-            userId: user?.id,
-          })
-        ).then((data) => {
-          if (data?.payload?.success) {
-            dispatch(fetchAllAddresses(user?.id));
-            setFormData(initialAddressFormData);
-            toast({
-              title: "Address added successfully",
-            });
-          }
-        });
+      ).then((data) => {
+        if (data?.payload?.success) {
+          dispatch(fetchAllAddresses(user?.id));
+          setCurrentEditedId(null);
+          setFormData(initialAddressFormData);
+          toast({
+            title: "Address updated successfully",
+          });
+        } else {
+          toast({
+            title: "Failed to update address",
+            description: data?.payload?.message || "Please try again",
+            variant: "destructive"
+          });
+        }
+      });
+    } else {
+      dispatch(
+        addNewAddress({
+          ...updatedFormData,
+          userId: user?.id,
+        })
+      ).then((data) => {
+        if (data?.payload?.success) {
+          dispatch(fetchAllAddresses(user?.id)).then(() => {
+            // If this is the first address, select it automatically
+            if (!selectedId && addressList?.length === 0) {
+              const newAddress = data?.payload?.data;
+              if (newAddress && setCurrentSelectedAddress) {
+                setCurrentSelectedAddress(newAddress);
+              }
+            }
+          });
+          setFormData(initialAddressFormData);
+          toast({
+            title: "Address added successfully",
+          });
+        } else {
+          toast({
+            title: "Failed to add address",
+            description: data?.payload?.message || "Please try again",
+            variant: "destructive"
+          });
+        }
+      });
+    }
   }
 
   function handleDeleteAddress(getCurrentAddress) {
+    if (!getCurrentAddress?._id) {
+      toast({
+        title: "Invalid address",
+        variant: "destructive",
+      });
+      return;
+    }
+
     dispatch(
       deleteAddress({ userId: user?.id, addressId: getCurrentAddress._id })
     ).then((data) => {
       if (data?.payload?.success) {
         dispatch(fetchAllAddresses(user?.id));
+        // If currently selected address is being deleted, clear it
+        if (selectedId === getCurrentAddress._id && setCurrentSelectedAddress) {
+          setCurrentSelectedAddress(null);
+        }
         toast({
           title: "Address deleted successfully",
+        });
+      } else {
+        toast({
+          title: "Failed to delete address",
+          description: data?.payload?.message || "Please try again",
+          variant: "destructive"
         });
       }
     });
   }
 
-  function handleEditAddress(getCuurentAddress) {
-    setCurrentEditedId(getCuurentAddress?._id);
+  function handleEditAddress(getCurrentAddress) {
+    setCurrentEditedId(getCurrentAddress?._id);
     setFormData({
-      ...formData,
-      address: getCuurentAddress?.address,
-      city: getCuurentAddress?.city,
-      phone: getCuurentAddress?.phone,
-      pincode: getCuurentAddress?.pincode,
-      notes: getCuurentAddress?.notes,
+      address: getCurrentAddress?.address || "",
+      city: getCurrentAddress?.city || "",
+      phone: getCurrentAddress?.phone || "",
+      pincode: getCurrentAddress?.pincode || "",
+      notes: getCurrentAddress?.notes || "No additional notes",
     });
   }
 
   function isFormValid() {
-    return Object.keys(formData)
-      .map((key) => formData[key].trim() !== "")
-      .every((item) => item);
+    return (
+      formData.address?.trim() !== "" &&
+      formData.city?.trim() !== "" &&
+      formData.phone?.trim() !== "" &&
+      formData.pincode?.trim() !== ""
+    );
   }
 
   useEffect(() => {
-    dispatch(fetchAllAddresses(user?.id));
-  }, [dispatch]);
-
-  console.log(addressList, "addressList");
+    if (user?.id) {
+      dispatch(fetchAllAddresses(user.id)).then((data) => {
+        // If there's at least one address and no address is selected yet
+        if (data?.payload?.data?.length > 0 && !selectedId && setCurrentSelectedAddress) {
+          setCurrentSelectedAddress(data.payload.data[0]);
+        }
+      });
+    }
+  }, [dispatch, user?.id, selectedId, setCurrentSelectedAddress]);
 
   return (
     <Card>
-      <div className="mb-5 p-3 grid grid-cols-1 sm:grid-cols-2  gap-2">
+      <div className="mb-5 p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
         {addressList && addressList.length > 0
           ? addressList.map((singleAddressItem) => (
               <AddressCard
+                key={singleAddressItem._id}
                 selectedId={selectedId}
                 handleDeleteAddress={handleDeleteAddress}
                 addressInfo={singleAddressItem}

@@ -2,59 +2,45 @@ import { Navigate, useLocation } from "react-router-dom";
 
 function CheckAuth({ isAuthenticated, user, children }) {
   const location = useLocation();
-
-  console.log(location.pathname, isAuthenticated);
-
+  
+  // Define paths that don't require authentication
+  const publicPaths = ["/login", "/register"];
+  const isPublicPath = publicPaths.some(path => location.pathname.includes(path));
+  
+  // Handle root path redirects
   if (location.pathname === "/") {
     if (!isAuthenticated) {
       return <Navigate to="/auth/login" />;
     } else {
-      if (user?.role === "admin") {
-        return <Navigate to="/admin/dashboard" />;
-      } else {
-        return <Navigate to="/shop/home" />;
-      }
+      return <Navigate to={user?.role === "admin" ? "/admin/dashboard" : "/shop/home"} />;
     }
   }
-
-  if (
-    !isAuthenticated &&
-    !(
-      location.pathname.includes("/login") ||
-      location.pathname.includes("/register")
-    )
-  ) {
+  
+  // Allow access to public paths (login/register) regardless of auth status
+  if (isPublicPath) {
+    // Only redirect authenticated users away from auth pages if they try to access them directly
+    if (isAuthenticated) {
+      return <Navigate to={user?.role === "admin" ? "/admin/dashboard" : "/shop/home"} />;
+    }
+    // Allow unauthenticated users to access public paths
+    return <>{children}</>;
+  }
+  
+  // Protect non-public paths from unauthenticated users
+  if (!isAuthenticated) {
     return <Navigate to="/auth/login" />;
   }
-
-  if (
-    isAuthenticated &&
-    (location.pathname.includes("/login") ||
-      location.pathname.includes("/register"))
-  ) {
-    if (user?.role === "admin") {
-      return <Navigate to="/admin/dashboard" />;
-    } else {
-      return <Navigate to="/shop/home" />;
-    }
-  }
-
-  if (
-    isAuthenticated &&
-    user?.role !== "admin" &&
-    location.pathname.includes("admin")
-  ) {
+  
+  // Role-based access control for authenticated users
+  if (user?.role !== "admin" && location.pathname.includes("/admin")) {
     return <Navigate to="/unauth-page" />;
   }
-
-  if (
-    isAuthenticated &&
-    user?.role === "admin" &&
-    location.pathname.includes("shop")
-  ) {
+  
+  if (user?.role === "admin" && location.pathname.includes("/shop")) {
     return <Navigate to="/admin/dashboard" />;
   }
-
+  
+  // If all checks pass, render the children
   return <>{children}</>;
 }
 
