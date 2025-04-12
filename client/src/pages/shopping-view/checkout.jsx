@@ -26,156 +26,6 @@ function ShoppingCheckout() {
     0
   ) || 0;
 
-  const initiateKhaltiPayment = async () => {
-    if (!cartItems?.items?.length || !currentSelectedAddress) {
-      toast({
-        title: "Please complete shipping information",
-        variant: "destructive",
-      });
-      return;
-    }
-  
-    setIsProcessing(true);
-  
-    try {
-      // Prepare payload with all cart items
-      const payload = {
-        items: cartItems.items.map(item => ({
-          itemId: item.productId,
-          quantity: item.quantity,
-          unitPrice: item.salePrice || item.price,
-        })),
-        website_url: window.location.origin,
-        return_url: `${window.location.origin}/order-success`,
-        shippingAddress: {
-          address: currentSelectedAddress?.address || "",
-          city: currentSelectedAddress?.city || "",
-          postalCode: currentSelectedAddress?.pincode || "",
-          country: "Nepal",
-          phone: currentSelectedAddress?.phone || "",
-        },
-        totalAmount: totalCartAmount, // Add total amount to payload
-      };
-  
-      const response = await fetch(`${API_BASE_URL}/api/payment/initialize-khalti`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`,
-        },
-        body: JSON.stringify(payload),
-        credentials: 'include', 
-        mode: 'cors'
-      });
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Payment initialization failed");
-      }
-  
-      const data = await response.json();
-  
-      if (data.payment_url) {
-        // Store order details temporarily
-        localStorage.setItem('pendingOrder', JSON.stringify({
-          cartItems: cartItems.items,
-          shippingAddress: currentSelectedAddress,
-          paymentMethod: "khalti",
-          totalAmount: totalCartAmount,
-          transactionId: data.pidx || null
-        }));
-  
-        // Redirect to Khalti payment page
-        window.location.href = data.payment_url;
-      } else {
-        throw new Error("Payment URL not received");
-      }
-    } catch (error) {
-      console.error("Khalti payment error:", error);
-      toast({
-        title: "Payment Error",
-        description: error.message || "Failed to initialize Khalti payment",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const completeOrder = async (paymentData) => {
-    if (!currentSelectedAddress) {
-      toast({
-        title: "Shipping address is required",
-        variant: "destructive",
-      });
-      return;
-    }
-  
-    // For Khalti payments, check if we have transaction details
-    const khaltiPayload = paymentData.paymentMethod === "khalti" 
-      ? {
-          pidx: paymentData.pidx,
-          transactionId: paymentData.transactionId,
-          amount: paymentData.amount
-        }
-      : null;
-  
-    const orderData = {
-      userId: user?.id,
-      cartId: cartItems?._id,
-      cartItems: cartItems.items.map((item) => ({
-        productId: item?.productId,
-        title: item?.title,
-        image: item?.image,
-        price: item?.salePrice || item?.price,
-        quantity: item?.quantity,
-      })),
-      shippingAddress: {
-        address: currentSelectedAddress?.address || "",
-        city: currentSelectedAddress?.city || "",
-        postalCode: currentSelectedAddress?.pincode || "",
-        country: "Nepal",
-        phone: currentSelectedAddress?.phone || "",
-      },
-      paymentMethod: paymentData.paymentMethod,
-      paymentStatus: paymentData.paymentStatus,
-      paymentDetails: khaltiPayload,
-      itemsPrice: totalCartAmount,
-      shippingPrice: 0,
-      taxPrice: 0,
-      totalPrice: totalCartAmount,
-      orderStatus: paymentData.paymentMethod === "cod" ? "pending" : "confirmed",
-    };
-  
-    try {
-      const action = await dispatch(createNewOrder(orderData));
-      const result = action.payload;
-  
-      if (result?.success) {
-        // Clear pending order from storage if it exists
-        localStorage.removeItem('pendingOrder');
-        
-        const successMessage = 
-          paymentData.paymentMethod === "cod" 
-            ? "Order placed successfully! Pay when your items arrive." 
-            : "Payment successful! Your order is confirmed.";
-        
-        toast({ title: successMessage });
-        navigate(`/order/${result.order._id}`);
-      } else {
-        throw new Error(result?.message || "Order creation failed");
-      }
-    } catch (error) {
-      console.error("Order error:", error);
-      toast({
-        title: "Order Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  
   const handlePaymentSelection = (method) => {
     setPaymentMethod(method);
   };
@@ -186,15 +36,70 @@ function ShoppingCheckout() {
       return;
     }
 
+    if (!currentSelectedAddress) {
+      toast({
+        title: "Shipping address is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      setIsProcessing(true);
+      
       if (paymentMethod === "khalti") {
-        await initiateKhaltiPayment();
-      } else if (paymentMethod === "cod") {
-        setIsProcessing(true);
-        await completeOrder({
-          paymentMethod: "cod",
-          paymentStatus: "pending"
+        // Just show a message for now as Khalti is not functional yet
+        toast({
+          title: "Khalti payments coming soon!",
+          description: "This payment method is not active yet.",
+          variant: "default",
         });
+        setIsProcessing(false);
+        return;
+      } 
+      
+      // If it's COD
+      if (paymentMethod === "cod") {
+        const orderData = {
+          userId: user?.id,
+          cartId: cartItems?._id,
+          cartItems: cartItems.items.map((item) => ({
+            productId: item?.productId,
+            title: item?.title,
+            image: item?.image,
+            price: item?.salePrice || item?.price,
+            quantity: item?.quantity,
+          })),
+          shippingAddress: {
+            address: currentSelectedAddress?.address || "",
+            city: currentSelectedAddress?.city || "",
+            postalCode: currentSelectedAddress?.pincode || "",
+            country: "Nepal",
+            phone: currentSelectedAddress?.phone || "",
+            notes: currentSelectedAddress?.notes || "",
+          },
+          paymentMethod: "COD",
+          paymentStatus: "pending",
+          itemsPrice: totalCartAmount,
+          shippingPrice: 0,
+          taxPrice: 0,
+          totalPrice: totalCartAmount,
+          orderStatus: "pending",
+          isPaid: false,
+        };
+      
+        const action = await dispatch(createNewOrder(orderData));
+        const result = action.payload;
+      
+        if (result?.success) {
+          toast({ 
+            title: "Order placed successfully!",
+            description: "Pay when your items arrive.",
+          });
+          navigate(`/order-success/${result.order._id}`);
+        } else {
+          throw new Error(result?.message || "Order creation failed");
+        }
       }
     } catch (error) {
       console.error("Order placement error:", error);
@@ -255,6 +160,7 @@ function ShoppingCheckout() {
                 <div className="flex-1">
                   <span className="font-medium block">Pay with Khalti</span>
                   <span className="text-sm text-gray-500">Fast and secure digital payment</span>
+                  <span className="text-xs text-purple-600 mt-1 italic">(Coming soon)</span>
                 </div>
                 {paymentMethod === "khalti" && (
                   <span className="ml-auto text-purple-600 text-lg">✓</span>

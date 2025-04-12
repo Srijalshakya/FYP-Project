@@ -12,7 +12,7 @@ const createOrder = async (req, res) => {
       userId,
       cartId,
       cartItems,
-      shippingAddress, // From frontend
+      shippingAddress,
       paymentMethod,
       paymentStatus,
       itemsPrice,
@@ -20,6 +20,7 @@ const createOrder = async (req, res) => {
       taxPrice,
       totalPrice,
       orderStatus,
+      isPaid
     } = req.body;
 
     // Validate required fields with detailed errors
@@ -44,7 +45,7 @@ const createOrder = async (req, res) => {
     const totalAmount = totalPrice || itemsPrice || calculatedTotal;
 
     // For Cash on Delivery, create order directly
-    if (paymentMethod === "cod") {
+    if (paymentMethod === "COD" || paymentMethod === "cod") {
       try {
         // Create new order document
         const newOrder = new Order({
@@ -53,13 +54,14 @@ const createOrder = async (req, res) => {
           cartItems,
           addressInfo: shippingAddress, // Map frontend field to backend schema field
           orderStatus: orderStatus || "pending",
-          paymentMethod,
+          paymentMethod: "COD", // Normalize to uppercase
           paymentStatus: paymentStatus || "pending",
           totalAmount: totalAmount,
           taxPrice: taxPrice || 0,
           shippingPrice: shippingPrice || 0,
           orderDate: new Date(),
           orderUpdateDate: new Date(),
+          isPaid: false, // Explicitly set to false for COD
         });
 
         const savedOrder = await newOrder.save();
@@ -190,6 +192,12 @@ const createOrder = async (req, res) => {
           }
         }
       });
+    } else if (paymentMethod === "khalti") {
+      // For now, return a meaningful error since Khalti is not implemented yet
+      return res.status(400).json({
+        success: false,
+        message: "Khalti payment method is not implemented yet"
+      });
     } else {
       // Handle other payment methods
       return res.status(400).json({
@@ -232,6 +240,7 @@ const capturePayment = async (req, res) => {
     order.paymentId = paymentId;
     order.payerId = payerId;
     order.orderUpdateDate = new Date();
+    order.isPaid = true; // Set isPaid to true upon payment
 
     // Update product inventory
     for (let item of order.cartItems) {
