@@ -35,7 +35,6 @@ function ShoppingCheckout() {
       toast({ title: "Please select a payment method", variant: "destructive" });
       return;
     }
-
     if (!currentSelectedAddress) {
       toast({
         title: "Shipping address is required",
@@ -43,7 +42,6 @@ function ShoppingCheckout() {
       });
       return;
     }
-
     try {
       setIsProcessing(true);
       
@@ -90,13 +88,37 @@ function ShoppingCheckout() {
       
         const action = await dispatch(createNewOrder(orderData));
         const result = action.payload;
-      
+        
         if (result?.success) {
-          toast({ 
-            title: "Order placed successfully!",
-            description: "Pay when your items arrive.",
-          });
-          navigate(`/order-success/${result.order._id}`);
+          // Log the result to see what we're getting
+          console.log("Order creation successful:", result);
+          
+          // Get the order ID using optional chaining and fallbacks
+          const orderId = result?.orderId || (result?.order && result.order._id);
+          
+          if (orderId) {
+            toast({ 
+              title: "Order placed successfully!",
+              description: "Pay when your items arrive.",
+            });
+            
+            // Updated navigation path to match the route we added in App.jsx
+            try {
+              navigate(`/shop/order-success/${orderId}`);
+            } catch (navError) {
+              console.error("Navigation error:", navError);
+              // Fallback navigation if the route with params has issues
+              navigate("/shop/home");
+            }
+          } else {
+            console.error("Order ID not found in response:", result);
+            toast({
+              title: "Order created but couldn't view details",
+              description: "Please check your orders page.",
+              variant: "default",
+            });
+            navigate("/shop/account");
+          }
         } else {
           throw new Error(result?.message || "Order creation failed");
         }
