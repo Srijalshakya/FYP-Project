@@ -97,19 +97,20 @@ function ShoppingCheckout() {
           const orderId = result?.orderId || (result?.order && result.order._id);
           
           if (orderId) {
+            // Save order info to localStorage for the success page to use
+            localStorage.setItem('latestOrder', JSON.stringify({
+              orderId: orderId,
+              totalAmount: totalCartAmount,
+              paymentMethod: paymentMethod
+            }));
+            
             toast({ 
               title: "Order placed successfully!",
               description: "Pay when your items arrive.",
             });
             
-            // Updated navigation path to match the route we added in App.jsx
-            try {
-              navigate(`/shop/order-success/${orderId}`);
-            } catch (navError) {
-              console.error("Navigation error:", navError);
-              // Fallback navigation if the route with params has issues
-              navigate("/shop/home");
-            }
+            // Navigate to order success page
+            navigate(`/shop/order-success/${orderId}`);
           } else {
             console.error("Order ID not found in response:", result);
             toast({

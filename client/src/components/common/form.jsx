@@ -39,7 +39,6 @@ function CommonForm({
             }
           />
         );
-
         break;
       case "select":
         element = (
@@ -66,7 +65,6 @@ function CommonForm({
             </SelectContent>
           </Select>
         );
-
         break;
       case "textarea":
         element = (
@@ -83,9 +81,19 @@ function CommonForm({
             }
           />
         );
-
         break;
-
+      case "custom":
+        element = getControlItem.customRender({
+          field: {
+            value,
+            onChange: (event) =>
+              setFormData({
+                ...formData,
+                [getControlItem.name]: event.target.value,
+              }),
+          },
+        });
+        break;
       default:
         element = (
           <Input
@@ -115,6 +123,9 @@ function CommonForm({
           <div className="grid w-full gap-1.5" key={controlItem.name}>
             <Label className="mb-1">{controlItem.label}</Label>
             {renderInputsByComponentType(controlItem)}
+            {controlItem.error && (
+              <p className="text-red-500 text-sm">{controlItem.error}</p>
+            )}
           </div>
         ))}
       </div>

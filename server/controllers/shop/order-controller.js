@@ -5,7 +5,6 @@ const Product = require("../../models/Product");
 
 const createOrder = async (req, res) => {
   try {
-    // Log the incoming request body for debugging
     console.log("Order creation request received:", JSON.stringify(req.body, null, 2));
     
     const {
@@ -23,7 +22,6 @@ const createOrder = async (req, res) => {
       isPaid
     } = req.body;
 
-    // Validate required fields with detailed errors
     const missingFields = [];
     if (!userId) missingFields.push("userId");
     if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) missingFields.push("cartItems");
@@ -37,49 +35,43 @@ const createOrder = async (req, res) => {
       });
     }
 
-    // Calculate total amount if not provided
     const calculatedTotal = cartItems.reduce(
       (sum, item) => sum + (item.price * item.quantity), 
       0
     );
     const totalAmount = totalPrice || itemsPrice || calculatedTotal;
 
-    // For Cash on Delivery, create order directly
     if (paymentMethod === "COD" || paymentMethod === "cod") {
       try {
-        // Create new order document
         const newOrder = new Order({
           userId,
           cartId,
           cartItems,
-          addressInfo: shippingAddress, // Map frontend field to backend schema field
+          addressInfo: shippingAddress,
           orderStatus: orderStatus || "pending",
-          paymentMethod: "COD", // Normalize to uppercase
+          paymentMethod: "COD",
           paymentStatus: paymentStatus || "pending",
           totalAmount: totalAmount,
           taxPrice: taxPrice || 0,
           shippingPrice: shippingPrice || 0,
           orderDate: new Date(),
           orderUpdateDate: new Date(),
-          isPaid: false, // Explicitly set to false for COD
+          isPaid: false,
         });
 
         const savedOrder = await newOrder.save();
         console.log("COD order created successfully:", savedOrder._id);
         
-        // Optional: Update product stock
         try {
           for (let item of cartItems) {
             let product = await Product.findById(item.productId);
             if (!product) {
               console.log(`Product not found: ${item.productId}`);
-              continue; // Skip this item if product not found
+              continue;
             }
             
-            // Check if we have enough stock
             if (product.totalStock < item.quantity) {
               console.log(`Insufficient stock for product: ${product.title}`);
-              // We'll continue anyway for COD orders, but log the issue
             }
             
             product.totalStock -= item.quantity;
@@ -87,17 +79,13 @@ const createOrder = async (req, res) => {
           }
         } catch (inventoryError) {
           console.error("Error updating inventory:", inventoryError);
-          // We don't fail the order creation if inventory update fails
-          // Just log the error and continue
         }
 
-        // Optional: Clear cart after successful order
         if (cartId) {
           try {
             await Cart.findByIdAndDelete(cartId);
           } catch (cartError) {
             console.error("Error deleting cart:", cartError);
-            // Don't fail if cart deletion fails
           }
         }
 
@@ -105,7 +93,7 @@ const createOrder = async (req, res) => {
           success: true,
           message: "Order created successfully",
           order: savedOrder,
-          orderId: savedOrder._id // Adding orderId to match expected response format
+          orderId: savedOrder._id
         });
       } catch (dbError) {
         console.error("Database operation failed:", dbError);
@@ -116,7 +104,6 @@ const createOrder = async (req, res) => {
         });
       }
     } else if (paymentMethod === "paypal") {
-      // Existing PayPal payment flow
       const create_payment_json = {
         intent: "sale",
         payer: {
@@ -160,7 +147,7 @@ const createOrder = async (req, res) => {
               userId,
               cartId,
               cartItems,
-              addressInfo: shippingAddress, // Map frontend field to backend schema field
+              addressInfo: shippingAddress,
               orderStatus: orderStatus || "processing",
               paymentMethod,
               paymentStatus: paymentStatus || "pending",
@@ -193,13 +180,11 @@ const createOrder = async (req, res) => {
         }
       });
     } else if (paymentMethod === "khalti") {
-      // For now, return a meaningful error since Khalti is not implemented yet
       return res.status(400).json({
         success: false,
         message: "Khalti payment method is not implemented yet"
       });
     } else {
-      // Handle other payment methods
       return res.status(400).json({
         success: false,
         message: `Payment method '${paymentMethod}' is not supported`
@@ -240,9 +225,8 @@ const capturePayment = async (req, res) => {
     order.paymentId = paymentId;
     order.payerId = payerId;
     order.orderUpdateDate = new Date();
-    order.isPaid = true; // Set isPaid to true upon payment
+    order.isPaid = true;
 
-    // Update product inventory
     for (let item of order.cartItems) {
       let product = await Product.findById(item.productId);
 
@@ -264,7 +248,6 @@ const capturePayment = async (req, res) => {
       await product.save();
     }
 
-    // Delete the cart
     if (order.cartId) {
       await Cart.findByIdAndDelete(order.cartId);
     }
@@ -354,9 +337,54 @@ const getOrderDetails = async (req, res) => {
   }
 };
 
+const cancelOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    if (order.orderStatus !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Only pending orders can be cancelled",
+      });
+    }
+
+    order.orderStatus = "cancelled";
+    order.orderUpdateDate = new Date();
+    await order.save();
+
+    for (let item of order.cartItems) {
+      let product = await Product.findById(item.productId);
+      if (product) {
+        product.totalStock += item.quantity;
+        await product.save();
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Order cancelled successfully",
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({
+      success: false,
+      message: "Failed to cancel order",
+    });
+  }
+};
+
 module.exports = {
   createOrder,
   capturePayment,
   getAllOrdersByUser,
   getOrderDetails,
+  cancelOrder,
 };

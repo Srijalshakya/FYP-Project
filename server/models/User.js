@@ -4,7 +4,6 @@ const UserSchema = new mongoose.Schema({
   userName: {
     type: String,
     required: true,
-    unique: true,
   },
   email: {
     type: String,
@@ -20,6 +19,10 @@ const UserSchema = new mongoose.Schema({
     default: "user",
   },
   otp: {
+    code: String,
+    expiresAt: Date,
+  },
+  resetPasswordOtp: {
     code: String,
     expiresAt: Date,
   },

@@ -35,7 +35,6 @@ export const verifyOtp = createAsyncThunk(
         { email, otp },
         { withCredentials: true }
       );
-      
       return res.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || "Verification failed");
@@ -74,7 +73,6 @@ export const logoutUser = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      // Even if logout API fails, we'll still clear the user state
       console.error("Logout error:", error);
       return { success: true }; // Return success so reducer will still clear state
     }
@@ -97,16 +95,13 @@ export const checkAuth = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      // This is the key change - handle 401 error as expected for unauthenticated users
       if (error.response && error.response.status === 401) {
-        // Return a standardized response instead of rejecting
         return {
           success: false,
           user: null,
           message: "Not authenticated"
         };
       }
-      // For other errors, reject with error info
       return rejectWithValue(error.response?.data || "Authentication check failed");
     }
   }
@@ -122,6 +117,12 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
       }
     },
+    // Add updateUser reducer
+    updateUser: (state, action) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload };
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -130,7 +131,6 @@ const authSlice = createSlice({
       })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.isLoading = false;
-        // Registration successful, but user isn't authenticated yet (needs OTP verification)
         state.user = null;
         state.isAuthenticated = false;
       })
@@ -174,18 +174,16 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
       })
       .addCase(logoutUser.rejected, (state, action) => {
-        // Even if logout fails, clear the user state
         state.isLoading = false;
         state.user = null;
         state.isAuthenticated = false;
       })
       .addCase(verifyOtp.fulfilled, (state, action) => {
-        // Typically after OTP verification, user might still need to log in
-        // Handle according to your app flow
         state.isLoading = false;
       });
   },
 });
 
-export const { setUser } = authSlice.actions;
+// Export the updateUser action along with setUser
+export const { setUser, updateUser } = authSlice.actions;
 export default authSlice.reducer;

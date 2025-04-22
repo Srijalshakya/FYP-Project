@@ -11,7 +11,7 @@ const registerUser = async (req, res) => {
     // Validate input
     if (!userName || !email || !password) {
       return res.status(400).json({
-        success: false,
+        success: falso,
         message: "Please provide all required fields",
       });
     }
@@ -25,42 +25,48 @@ const registerUser = async (req, res) => {
       });
     }
 
+    // Check password requirements
+    if (!/^(?=.*[A-Z])(?=.*[0-9])[A-Za-z0-9]+$/.test(password)) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must contain at least one capital letter, one number, and only letters/numbers",
+      });
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({ 
       $or: [
-        { email: email },
-        { userName: userName }
+        { email },
+        { userName }
       ]
-    });
+    }).lean();
 
     if (existingUser) {
-      // Check if they've already registered but not verified
       if (existingUser.email === email && !existingUser.isVerified) {
-        // Generate new OTP
-        const otp = Math.floor(100000 + Math.random() * 900000); // 6-digit code
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min from now
+        const otp = Math.floor(100000 + Math.random() * 900000);
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
         
-        existingUser.otp = { code: otp, expiresAt };
-        // Keep the same password if re-registering
-        await existingUser.save();
+        await User.updateOne(
+          { email },
+          { $set: { otp: { code: otp, expiresAt } } }
+        );
         
-        // Try to send OTP email
         const emailSent = await sendOtpMail(email, otp, userName);
         
         return res.status(200).json({
           success: true,
           message: "Account already exists. New OTP sent for verification.",
-          emailSent: emailSent,
+          emailSent,
         });
       }
       
-      // Otherwise, it's a duplicate account
       if (existingUser.email === email) {
         return res.status(400).json({
           success: false,
           message: "Email already in use. Please use a different email address.",
         });
-      } else {
+      }
+      if (existingUser.userName === userName) {
         return res.status(400).json({
           success: false,
           message: "Username already taken. Please choose a different username.",
@@ -70,8 +76,8 @@ const registerUser = async (req, res) => {
 
     // Create new user
     const hashPassword = await bcrypt.hash(password, 12);
-    const otp = Math.floor(100000 + Math.random() * 900000); // 6-digit code
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min from now
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     const newUser = new User({
       userName,
@@ -82,12 +88,9 @@ const registerUser = async (req, res) => {
 
     await newUser.save();
     
-    // Send OTP email with proper error handling
     const emailSent = await sendOtpMail(email, otp, userName);
     
     if (!emailSent) {
-      console.log(`Failed to send OTP email to ${email}`);
-      // We still create the user but inform about email sending issue
       return res.status(201).json({
         success: true,
         message: "Account created but couldn't send verification email. Try resending OTP.",
@@ -95,7 +98,6 @@ const registerUser = async (req, res) => {
       });
     }
 
-    console.log(`User registered with ID ${newUser._id} and OTP sent to ${email}`);
     res.status(201).json({
       success: true,
       message: "OTP sent to your email. Please verify.",
@@ -103,13 +105,21 @@ const registerUser = async (req, res) => {
     });
   } catch (e) {
     console.error("Registration error:", e);
+    if (e.code === 11000) {
+      const field = Object.keys(e.keyValue)[0];
+      return res.status(400).json({
+        success: false,
+        message: `${field.charAt(0).toUpperCase() + field.slice(1)} already in use`,
+      });
+    }
     res.status(500).json({
       success: false,
-      message: "Some error occurred during registration",
+      message: "An unexpected error occurred during registration",
     });
   }
 };
 
+// Verify OTP
 const verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
 
@@ -121,7 +131,7 @@ const verifyOtp = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).lean();
     if (!user) {
       return res.status(400).json({ 
         success: false, 
@@ -136,10 +146,8 @@ const verifyOtp = async (req, res) => {
       });
     }
 
-    // Convert string OTP to number for comparison if needed
     const otpNumber = parseInt(otp, 10);
     
-    // Check if OTP is valid and not expired
     if (!user.otp || !user.otp.code || !user.otp.expiresAt) {
       return res.status(400).json({ 
         success: false, 
@@ -147,7 +155,6 @@ const verifyOtp = async (req, res) => {
       });
     }
     
-    // Check OTP validity
     if (user.otp.code != otpNumber) {
       return res.status(400).json({ 
         success: false, 
@@ -155,7 +162,6 @@ const verifyOtp = async (req, res) => {
       });
     }
     
-    // Check OTP expiration
     if (user.otp.expiresAt < new Date()) {
       return res.status(400).json({ 
         success: false, 
@@ -163,10 +169,10 @@ const verifyOtp = async (req, res) => {
       });
     }
 
-    // Mark user as verified and remove OTP
-    user.isVerified = true;
-    user.otp = undefined;
-    await user.save();
+    await User.updateOne(
+      { email },
+      { $set: { isVerified: true }, $unset: { otp: 1 } }
+    );
 
     res.status(200).json({ 
       success: true, 
@@ -176,7 +182,7 @@ const verifyOtp = async (req, res) => {
     console.error("OTP verification error:", e);
     res.status(500).json({ 
       success: false, 
-      message: "Server error during verification" 
+      message: "An unexpected error occurred during verification" 
     });
   }
 };
@@ -193,7 +199,7 @@ const loginUser = async (req, res) => {
       });
     }
 
-    const checkUser = await User.findOne({ email });
+    const checkUser = await User.findOne({ email }).lean();
     if (!checkUser) {
       return res.status(404).json({
         success: false,
@@ -231,14 +237,13 @@ const loginUser = async (req, res) => {
       { expiresIn: "60m" }
     );
 
-    // Set secure to true in production
     const isProduction = process.env.NODE_ENV === 'production';
     
     res.cookie("token", token, { 
       httpOnly: true, 
       secure: isProduction,
       sameSite: isProduction ? 'none' : 'lax',
-      maxAge: 60 * 60 * 1000 // 60 minutes
+      maxAge: 60 * 60 * 1000
     }).json({
       success: true,
       message: "Logged in successfully",
@@ -253,7 +258,7 @@ const loginUser = async (req, res) => {
     console.error("Login error:", e);
     res.status(500).json({
       success: false,
-      message: "Server error during login",
+      message: "An unexpected error occurred during login",
     });
   }
 };
@@ -266,7 +271,7 @@ const logoutUser = (req, res) => {
   });
 };
 
-// Resend OTP endpoint
+// Resend OTP
 const resendOtp = async (req, res) => {
   const { email } = req.body;
 
@@ -278,7 +283,7 @@ const resendOtp = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).lean();
     if (!user) {
       return res.status(404).json({ 
         success: false, 
@@ -293,14 +298,14 @@ const resendOtp = async (req, res) => {
       });
     }
 
-    // Generate new OTP
-    const otp = Math.floor(100000 + Math.random() * 900000); // 6-digit code
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min from now
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    user.otp = { code: otp, expiresAt };
-    await user.save();
+    await User.updateOne(
+      { email },
+      { $set: { otp: { code: otp, expiresAt } } }
+    );
 
-    // Send the new OTP
     const emailSent = await sendOtpMail(email, otp, user.userName);
     if (!emailSent) {
       return res.status(500).json({ 
@@ -317,14 +322,145 @@ const resendOtp = async (req, res) => {
     console.error("Resend OTP error:", e);
     res.status(500).json({
       success: false,
-      message: "Server error while resending OTP",
+      message: "An unexpected error occurred while resending OTP",
     });
   }
 };
 
-// Auth middleware - Fix to handle CORS preflight issues
+// Forgot Password
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const user = await User.findOne({ email }).lean();
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.isVerified) {
+      return res.status(403).json({
+        success: false,
+        message: "Please verify your email first",
+      });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await User.updateOne(
+      { email },
+      { $set: { resetPasswordOtp: { code: otp, expiresAt } } }
+    );
+
+    const emailSent = await sendOtpMail(email, otp, user.userName, "Password Reset OTP");
+    if (!emailSent) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send reset OTP email. Please try again.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Reset OTP sent to your email",
+    });
+  } catch (e) {
+    console.error("Forgot password error:", e);
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred while processing forgot password request",
+    });
+  }
+};
+
+// Reset Password
+const resetPassword = async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  try {
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Email, OTP, and new password are required",
+      });
+    }
+
+    if (!/^(?=.*[A-Z])(?=.*[0-9])[A-Za-z0-9]+$/.test(newPassword)) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must contain at least one capital letter, one number, and only letters/numbers",
+      });
+    }
+
+    const user = await User.findOne({ email }).lean();
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.isVerified) {
+      return res.status(403).json({
+        success: false,
+        message: "Please verify your email first",
+      });
+    }
+
+    const otpNumber = parseInt(otp, 10);
+
+    if (!user.resetPasswordOtp || !user.resetPasswordOtp.code || !user.resetPasswordOtp.expiresAt) {
+      return res.status(400).json({
+        success: false,
+        message: "Reset OTP not found or expired. Please request a new one.",
+      });
+    }
+
+    if (user.resetPasswordOtp.code != otpNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid reset OTP. Please try again.",
+      });
+    }
+
+    if (user.resetPasswordOtp.expiresAt < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Reset OTP has expired. Please request a new one.",
+      });
+    }
+
+    const hashPassword = await bcrypt.hash(newPassword, 12);
+    await User.updateOne(
+      { email },
+      { $set: { password: hashPassword }, $unset: { resetPasswordOtp: 1 } }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset successfully",
+    });
+  } catch (e) {
+    console.error("Reset password error:", e);
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred while resetting password",
+    });
+  }
+};
+
+// Auth Middleware
 const authMiddleware = async (req, res, next) => {
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -349,4 +485,13 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-module.exports = { registerUser, loginUser, logoutUser, authMiddleware, verifyOtp, resendOtp };
+module.exports = { 
+  registerUser, 
+  loginUser, 
+  logoutUser, 
+  authMiddleware, 
+  verifyOtp, 
+  resendOtp, 
+  forgotPassword, 
+  resetPassword 
+};

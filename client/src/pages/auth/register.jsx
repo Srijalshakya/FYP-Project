@@ -7,6 +7,7 @@ import { registerFormControls } from "@/config";
 import CommonForm from "@/components/common/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Eye, EyeOff } from "lucide-react";
 
 const initialState = {
   userName: "",
@@ -15,7 +16,6 @@ const initialState = {
 };
 
 const AuthRegister = () => {
-  // Create refs to preserve values between renders
   const emailRef = useRef("");
   const userNameRef = useRef("");
   
@@ -26,6 +26,7 @@ const AuthRegister = () => {
   const [formErrors, setFormErrors] = useState({});
   const [resendCooldown, setResendCooldown] = useState(0);
   const [showOtpInput, setShowOtpInput] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -33,7 +34,6 @@ const AuthRegister = () => {
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-  // Update refs when formData changes
   useEffect(() => {
     if (formData.email) {
       emailRef.current = formData.email;
@@ -62,6 +62,8 @@ const AuthRegister = () => {
       errors.password = "Password is required";
     } else if (formData.password.length < 6) {
       errors.password = "Password must be at least 6 characters";
+    } else if (!/^(?=.*[A-Z])(?=.*[0-9])[A-Za-z0-9]+$/.test(formData.password)) {
+      errors.password = "Password must contain at least one capital letter, one number, and only letters/numbers";
     }
     
     setFormErrors(errors);
@@ -70,24 +72,18 @@ const AuthRegister = () => {
 
   const onSubmit = async (event) => {
     event.preventDefault();
-    console.log("Form submitted");
     
     if (!validateForm()) {
-      console.log("Form validation failed");
       return;
     }
     
     if (formSubmitting) return;
     setFormSubmitting(true);
 
-    // Store email in ref before making the request
     emailRef.current = formData.email;
     userNameRef.current = formData.userName;
 
     try {
-      console.log("Sending registration request to:", `${API_URL}/auth/register`);
-      console.log("With data:", formData);
-      
       const response = await fetch(`${API_URL}/auth/register`, {
         method: "POST",
         headers: {
@@ -97,39 +93,21 @@ const AuthRegister = () => {
         credentials: "include"
       });
 
-      // Parse the response JSON first to get the error message if any
-      let data;
-      try {
-        data = await response.json();
-      } catch (error) {
-        console.error("Failed to parse response:", error);
-        throw new Error("Invalid server response");
-      }
+      const data = await response.json();
 
-      // Then check if the response is ok
       if (!response.ok) {
-        console.error("Registration API error:", response.status, data);
-        throw new Error(data.message || `API error: ${response.status}`);
+        throw new Error(data.message || "Registration failed");
       }
-
-      console.log("Registration response:", data);
 
       if (data.success) {
-        console.log("Registration request successful, OTP sent to email");
-        
-        // IMPORTANT: Don't dispatch registerUser action yet!
-        // We'll only do that after OTP verification
-        
         toast({ 
           title: "Registration Submitted",
           description: "Please verify your email with the OTP we sent"
         });
         
-        // Show OTP input after successful registration
         setShowOtpInput(true);
         startResendCooldown();
       } else {
-        // Handle "success: false" from the server
         toast({
           title: "Registration Failed",
           description: data.message || "Please try again",
@@ -139,8 +117,8 @@ const AuthRegister = () => {
     } catch (error) {
       console.error("Registration error:", error);
       toast({
-        title: "Registration Failed",
-        description: error.message || "Please check your connection and try again",
+        title: "Registration Error",
+        description: error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -161,9 +139,7 @@ const AuthRegister = () => {
     if (verifyingOtp) return;
     setVerifyingOtp(true);
     
-    // Use emailRef to ensure we have the correct email
     const emailToVerify = emailRef.current;
-    console.log("Verifying OTP:", otp, "for email:", emailToVerify);
 
     if (!emailToVerify) {
       toast({
@@ -188,29 +164,16 @@ const AuthRegister = () => {
         credentials: "include"
       });
 
-      // Parse the response JSON first
-      let data;
-      try {
-        data = await response.json();
-      } catch (error) {
-        console.error("Failed to parse OTP verification response:", error);
-        throw new Error("Invalid server response");
-      }
+      const data = await response.json();
 
-      // Then check if the response is ok
       if (!response.ok) {
-        console.error("OTP verification API error:", response.status, data);
-        throw new Error(data.message || `API error: ${response.status}`);
+        throw new Error(data.message || "OTP verification failed");
       }
-
-      console.log("OTP verification response:", data);
 
       if (data.success) {
-        // NOW is when we actually register the user in our app state
         dispatch(registerUser({
           userName: userNameRef.current,
           email: emailRef.current,
-          // Include any other user data from the response if available
           ...(data.user || {})
         }));
         
@@ -219,7 +182,6 @@ const AuthRegister = () => {
           description: "Registration complete! You can now log in."
         });
         
-        // Redirect to login page after successful verification
         navigate("/auth/login");
       } else {
         toast({
@@ -232,7 +194,7 @@ const AuthRegister = () => {
       console.error("OTP verification error:", error);
       toast({
         title: "Verification Error",
-        description: error.message || "Unable to verify OTP. Please try again",
+        description: error.message || "Unable to verify OTP. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -256,7 +218,6 @@ const AuthRegister = () => {
   const handleResendOtp = async () => {
     if (resendCooldown > 0) return;
     
-    // Use emailRef to ensure we have the correct email
     const emailToResend = emailRef.current;
     
     if (!emailToResend) {
@@ -269,7 +230,6 @@ const AuthRegister = () => {
     }
     
     try {
-      console.log("Resending OTP for email:", emailToResend);
       const response = await fetch(`${API_URL}/auth/resend-otp`, {
         method: "POST",
         headers: {
@@ -279,22 +239,11 @@ const AuthRegister = () => {
         credentials: "include"
       });
 
-      // Parse the response JSON first
-      let data;
-      try {
-        data = await response.json();
-      } catch (error) {
-        console.error("Failed to parse resend OTP response:", error);
-        throw new Error("Invalid server response");
-      }
+      const data = await response.json();
 
-      // Then check if the response is ok
       if (!response.ok) {
-        console.error("Resend OTP API error:", response.status, data);
-        throw new Error(data.message || `API error: ${response.status}`);
+        throw new Error(data.message || "Failed to resend OTP");
       }
-
-      console.log("Resend OTP response:", data);
 
       if (data.success) {
         toast({ 
@@ -339,7 +288,32 @@ const AuthRegister = () => {
         
         {!showOtpInput ? (
           <CommonForm
-            formControls={registerFormControls}
+            formControls={registerFormControls.map(control => {
+              if (control.name === "password") {
+                return {
+                  ...control,
+                  componentType: "custom",
+                  customRender: ({ field }) => (
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder={control.placeholder}
+                        {...field}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-3"
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                  )
+                };
+              }
+              return control;
+            })}
             buttonText={formSubmitting ? "Signing Up..." : "Sign Up"}
             formData={formData}
             setFormData={setFormData}

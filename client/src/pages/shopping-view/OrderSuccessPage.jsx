@@ -1,391 +1,131 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 
-const CheckoutPage = () => {
+const OrderSuccessPage = () => {
+  const { orderId } = useParams();
   const navigate = useNavigate();
-  const [cart, setCart] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState('cashOnDelivery');
-  const [shippingInfo, setShippingInfo] = useState({
-    name: '',
-    address: '',
-    city: '',
-    postalCode: '',
-    phone: ''
+  const [orderData, setOrderData] = useState({
+    orderId: '',
+    estimatedDelivery: '',
+    totalAmount: 0,
+    paymentMethod: ''
   });
-
-  // Fetch cart data when component mounts
+  
   useEffect(() => {
-    const fetchCart = async () => {
-      try {
-        // Try to get cart from API first
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/cart', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setCart(data.items || []);
-        } else {
-          // If API fails, try to get cart from localStorage
-          const storedCart = localStorage.getItem('cart');
-          if (storedCart) {
-            const parsedCart = JSON.parse(storedCart);
-            setCart(parsedCart.items || []);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching cart:', error);
-        // Try to get cart from localStorage as fallback
-        const storedCart = localStorage.getItem('cart');
-        if (storedCart) {
-          try {
-            const parsedCart = JSON.parse(storedCart);
-            setCart(parsedCart.items || []);
-          } catch (e) {
-            console.error('Error parsing stored cart:', e);
-            setCart([]);
-          }
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCart();
-  }, []);
-
-  // Calculate total whenever cart changes
-  useEffect(() => {
-    const calculateTotal = () => {
-      if (!cart || cart.length === 0) {
-        setTotal(0);
-        return;
-      }
-
-      const sum = cart.reduce((acc, item) => {
-        const price = parseFloat(item.price || 0);
-        const quantity = parseInt(item.quantity || 1);
-        return acc + (price * quantity);
-      }, 0);
-
-      setTotal(sum);
-      
-      // Also update localStorage cart with new total
-      try {
-        const storedCart = localStorage.getItem('cart');
-        if (storedCart) {
-          const parsedCart = JSON.parse(storedCart);
-          localStorage.setItem('cart', JSON.stringify({
-            ...parsedCart,
-            items: cart,
-            totalAmount: sum
-          }));
-        }
-      } catch (e) {
-        console.error('Error updating stored cart:', e);
-      }
-    };
-
-    calculateTotal();
-  }, [cart]);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setShippingInfo(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleQuantityChange = (itemId, newQuantity) => {
-    if (newQuantity < 1) return;
+    // Get current date + 7 days for estimated delivery (fallback)
+    const defaultDeliveryDate = new Date();
+    defaultDeliveryDate.setDate(defaultDeliveryDate.getDate() + 7);
+    const defaultDeliveryString = defaultDeliveryDate.toLocaleDateString('en-US', {
+      month: 'numeric', 
+      day: 'numeric',
+      year: 'numeric'
+    });
     
-    setCart(prevCart => 
-      prevCart.map(item => 
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      )
-    );
-  };
-
-  const handleRemoveItem = (itemId) => {
-    setCart(prevCart => prevCart.filter(item => item.id !== itemId));
-  };
-
-  const handlePlaceOrder = async () => {
-    try {
-      // Validate shipping info
-      const requiredFields = ['name', 'address', 'city', 'postalCode', 'phone'];
-      const missingFields = requiredFields.filter(field => !shippingInfo[field]);
-      
-      if (missingFields.length > 0) {
-        alert(`Please fill in all required fields: ${missingFields.join(', ')}`);
-        return;
+    // Try to get order info from localStorage first
+    const latestOrder = localStorage.getItem('latestOrder');
+    if (latestOrder) {
+      try {
+        const parsedOrder = JSON.parse(latestOrder);
+        setOrderData({
+          orderId: parsedOrder.orderId || orderId || 'ORD-199411',
+          estimatedDelivery: parsedOrder.estimatedDelivery || defaultDeliveryString,
+          totalAmount: parsedOrder.totalAmount || 0,
+          paymentMethod: parsedOrder.paymentMethod || 'cod'
+        });
+      } catch (e) {
+        console.error('Error parsing order data:', e);
+        // Fallback values
+        setOrderData({
+          orderId: orderId || 'ORD-199411',
+          estimatedDelivery: defaultDeliveryString,
+          totalAmount: 0,
+          paymentMethod: 'cod'
+        });
       }
-
-      // Create order payload
-      const orderPayload = {
-        items: cart,
-        totalAmount: total,
-        shippingInfo,
-        paymentMethod
-      };
-
-      // Send order to API
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(orderPayload)
+    } else {
+      // If nothing in localStorage, use params and defaults
+      setOrderData({
+        orderId: orderId || 'ORD-199411',
+        estimatedDelivery: defaultDeliveryString,
+        totalAmount: 0,
+        paymentMethod: 'cod'
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Update localStorage with order info
-        localStorage.setItem('latestOrder', JSON.stringify({
-          orderId: data.orderId || data.id,
-          totalAmount: total,
-          paymentMethod
-        }));
-        
-        // Clear cart in localStorage
-        localStorage.setItem('cart', JSON.stringify({ items: [], totalAmount: 0 }));
-        
-        // Navigate to success page
-        navigate(`/order-success/${data.orderId || data.id}`);
-      } else {
-        throw new Error('Failed to place order');
-      }
-    } catch (error) {
-      console.error('Error placing order:', error);
-      alert('There was an error placing your order. Please try again.');
     }
-  };
+  }, [orderId]);
 
-  // Format currency
-  const formatCurrency = (amount) => {
-    return `$${parseFloat(amount).toFixed(2)}`;
+  const handleReturnToHome = () => {
+    navigate('/shop/home');
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Checkout</h1>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Cart Items & Shipping Info - 2/3 width on large screens */}
-        <div className="lg:col-span-2">
-          {/* Cart Items */}
-          <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
-            <h2 className="text-xl font-semibold mb-4">Cart Items</h2>
-            
-            {cart.length === 0 ? (
-              <p className="text-gray-500">Your cart is empty.</p>
-            ) : (
-              <div className="space-y-4">
-                {cart.map((item) => (
-                  <div key={item.id} className="flex items-center border-b pb-4">
-                    <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
-                      {item.image ? (
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="ml-4 flex-grow">
-                      <h3 className="font-medium">{item.name}</h3>
-                      <p className="text-gray-500 text-sm">{formatCurrency(item.price)}</p>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <button 
-                        onClick={() => handleQuantityChange(item.id, Math.max(1, item.quantity - 1))}
-                        className="w-8 h-8 rounded-full border flex items-center justify-center"
-                      >
-                        -
-                      </button>
-                      <span className="mx-2">{item.quantity}</span>
-                      <button 
-                        onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                        className="w-8 h-8 rounded-full border flex items-center justify-center"
-                      >
-                        +
-                      </button>
-                    </div>
-                    
-                    <div className="ml-4 text-right">
-                      <p className="font-medium">{formatCurrency(item.price * item.quantity)}</p>
-                      <button 
-                        onClick={() => handleRemoveItem(item.id)} 
-                        className="text-red-500 text-sm"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
+      <div className="w-full max-w-md bg-white rounded-lg shadow p-8">
+        {/* Success icon */}
+        <div className="flex justify-center mb-6">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="32" 
+              height="32" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              className="text-green-500"
+            >
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
           </div>
-          
-          {/* Shipping Information */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <h2 className="text-xl font-semibold mb-4">Shipping Information</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-gray-700 mb-1">Full Name</label>
-                <input 
-                  type="text" 
-                  name="name" 
-                  value={shippingInfo.name} 
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none" 
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-gray-700 mb-1">Phone Number</label>
-                <input 
-                  type="tel" 
-                  name="phone" 
-                  value={shippingInfo.phone} 
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none" 
-                  required
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <label className="block text-gray-700 mb-1">Address</label>
-                <input 
-                  type="text" 
-                  name="address" 
-                  value={shippingInfo.address} 
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none" 
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-gray-700 mb-1">City</label>
-                <input 
-                  type="text" 
-                  name="city" 
-                  value={shippingInfo.city} 
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none" 
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-gray-700 mb-1">Postal Code</label>
-                <input 
-                  type="text" 
-                  name="postalCode" 
-                  value={shippingInfo.postalCode} 
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:outline-none" 
-                  required
-                />
-              </div>
+        </div>
+        
+        {/* Success message */}
+        <h1 className="text-2xl font-bold text-center mb-2">Order Placed Successfully!</h1>
+        <p className="text-gray-600 text-center mb-8">
+          Thank you for your purchase. Your order has been confirmed.
+        </p>
+        
+        {/* Order details */}
+        <div className="bg-gray-50 rounded-lg p-4 mb-6">
+          <h2 className="text-center font-medium mb-4">Order Details</h2>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Order #:</span>
+              <span className="font-medium">{orderData.orderId}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Estimated Delivery:</span>
+              <span className="font-medium">{orderData.estimatedDelivery}</span>
             </div>
           </div>
         </div>
         
-        {/* Order Summary - 1/3 width on large screens */}
-        <div>
-          <div className="bg-white p-6 rounded-lg shadow-sm sticky top-4">
-            <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
-            
-            <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-gray-600">Subtotal:</span>
-                <span>{formatCurrency(total)}</span>
-              </div>
-              
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-gray-600">Shipping:</span>
-                <span>Free</span>
-              </div>
-              
-              <div className="flex justify-between py-2 pt-3">
-                <span className="text-lg font-semibold">Total:</span>
-                <span className="text-lg font-semibold text-green-600">
-                  {formatCurrency(total)}
-                </span>
-              </div>
-            </div>
-            
-            <div className="mt-6">
-              <h3 className="font-medium mb-3">Payment Method</h3>
-              
-              <div className="space-y-2">
-                <label className="flex items-center">
-                  <input 
-                    type="radio" 
-                    name="paymentMethod" 
-                    value="cashOnDelivery"
-                    checked={paymentMethod === 'cashOnDelivery'}
-                    onChange={() => setPaymentMethod('cashOnDelivery')}
-                    className="mr-2"
-                  />
-                  Cash on Delivery
-                </label>
-                
-                <label className="flex items-center">
-                  <input 
-                    type="radio" 
-                    name="paymentMethod" 
-                    value="creditCard"
-                    checked={paymentMethod === 'creditCard'}
-                    onChange={() => setPaymentMethod('creditCard')}
-                    className="mr-2"
-                  />
-                  Credit Card (coming soon)
-                </label>
-              </div>
-            </div>
-            
-            <button
-              onClick={handlePlaceOrder}
-              disabled={cart.length === 0}
-              className={`w-full mt-6 py-3 rounded-lg font-medium text-white 
-                ${cart.length === 0 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-primary hover:bg-primary/90'
-                }`}
-            >
-              Place Order
-            </button>
-          </div>
-        </div>
+        {/* Return to home button */}
+        <button
+          onClick={handleReturnToHome}
+          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md flex items-center justify-center transition-colors"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="16" 
+            height="16" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            className="mr-2"
+          >
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          Return to Home
+        </button>
       </div>
     </div>
   );
 };
 
-export default CheckoutPage;
+export default OrderSuccessPage;

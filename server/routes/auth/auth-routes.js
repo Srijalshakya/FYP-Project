@@ -6,16 +6,19 @@ const {
   authMiddleware,
   verifyOtp,
   resendOtp,
+  forgotPassword,
+  resetPassword,
 } = require("../../controllers/auth/auth-controller");
 
 const router = express.Router();
 
 router.post("/register", registerUser);
-router.post("/verify", verifyOtp); // Changed from verify-otp to match frontend
+router.post("/verify", verifyOtp);
 router.post("/login", loginUser);
 router.post("/logout", logoutUser);
-// 5. Add resend-otp route to router.js
 router.post("/resend-otp", resendOtp);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 router.get("/check-auth", authMiddleware, (req, res) => {
   const user = req.user;
   res.status(200).json({
