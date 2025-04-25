@@ -19,10 +19,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { useEffect } from "react";
 import { checkAuth } from "./store/auth-slice";
 import { Skeleton } from "@/components/ui/skeleton";
-import PaypalReturnPage from "./pages/shopping-view/paypal-return";
 import PaymentSuccessPage from "./pages/shopping-view/payment-success";
+import PaymentCancelPage from "./pages/shopping-view/payment-cancel";
+import KhaltiReturnPage from "./pages/shopping-view/khalti-return";
 import SearchProducts from "./pages/shopping-view/search";
 import OrderSuccessPage from "./pages/shopping-view/OrderSuccessPage";
+// Remove this import
+// import ProtectedRoute from "./ProtectedRoute";
 
 function App() {
   const { user, isAuthenticated, isLoading } = useSelector(
@@ -57,10 +60,7 @@ function App() {
         <Route
           path="/"
           element={
-            <CheckAuth
-              isAuthenticated={isAuthenticated}
-              user={user}
-            ></CheckAuth>
+            <CheckAuth isAuthenticated={isAuthenticated} user={user}></CheckAuth>
           }
         />
         <Route
@@ -82,6 +82,7 @@ function App() {
             </CheckAuth>
           }
         >
+          {/* Replace ProtectedRoute with direct elements */}
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="products" element={<AdminProducts />} />
           <Route path="orders" element={<AdminOrders />} />
@@ -97,15 +98,16 @@ function App() {
         >
           <Route path="home" element={<ShoppingHome />} />
           <Route path="listing" element={<ShoppingListing />} />
+          {/* Replace these with direct elements too */}
           <Route path="checkout" element={<ShoppingCheckout />} />
           <Route path="account" element={<ShoppingAccount />} />
-          <Route path="paypal-return" element={<PaypalReturnPage />} />
           <Route path="payment-success" element={<PaymentSuccessPage />} />
+          <Route path="payment-cancel" element={<PaymentCancelPage />} />
+          <Route path="khalti-return" element={<KhaltiReturnPage />} />
           <Route path="search" element={<SearchProducts />} />
           <Route path="order-success/:orderId" element={<OrderSuccessPage />} />
         </Route>
 
-        <Route path="/search" element={<SearchProducts />} />
         <Route path="/unauth-page" element={<UnauthPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

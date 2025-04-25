@@ -18,16 +18,15 @@ function ShoppingCheckout() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Backend API base URL
-  const API_BASE_URL = "http://localhost:5000";
-
   const totalCartAmount = cartItems?.items?.reduce(
     (sum, item) => sum + (item?.salePrice || item?.price) * item?.quantity,
     0
   ) || 0;
 
   const handlePaymentSelection = (method) => {
-    setPaymentMethod(method);
+    if (["cod", "khalti"].includes(method)) {
+      setPaymentMethod(method);
+    }
   };
 
   const handlePlaceOrder = async () => {
@@ -44,85 +43,65 @@ function ShoppingCheckout() {
     }
     try {
       setIsProcessing(true);
-      
-      if (paymentMethod === "khalti") {
-        // Just show a message for now as Khalti is not functional yet
-        toast({
-          title: "Khalti payments coming soon!",
-          description: "This payment method is not active yet.",
-          variant: "default",
-        });
-        setIsProcessing(false);
-        return;
-      } 
-      
-      // If it's COD
-      if (paymentMethod === "cod") {
-        const orderData = {
-          userId: user?.id,
-          cartId: cartItems?._id,
-          cartItems: cartItems.items.map((item) => ({
-            productId: item?.productId,
-            title: item?.title,
-            image: item?.image,
-            price: item?.salePrice || item?.price,
-            quantity: item?.quantity,
-          })),
-          shippingAddress: {
-            address: currentSelectedAddress?.address || "",
-            city: currentSelectedAddress?.city || "",
-            postalCode: currentSelectedAddress?.pincode || "",
-            country: "Nepal",
-            phone: currentSelectedAddress?.phone || "",
-            notes: currentSelectedAddress?.notes || "",
-          },
-          paymentMethod: "COD",
-          paymentStatus: "pending",
-          itemsPrice: totalCartAmount,
-          shippingPrice: 0,
-          taxPrice: 0,
-          totalPrice: totalCartAmount,
-          orderStatus: "pending",
-          isPaid: false,
-        };
-      
-        const action = await dispatch(createNewOrder(orderData));
-        const result = action.payload;
-        
-        if (result?.success) {
-          // Log the result to see what we're getting
-          console.log("Order creation successful:", result);
-          
-          // Get the order ID using optional chaining and fallbacks
-          const orderId = result?.orderId || (result?.order && result.order._id);
-          
-          if (orderId) {
-            // Save order info to localStorage for the success page to use
-            localStorage.setItem('latestOrder', JSON.stringify({
-              orderId: orderId,
-              totalAmount: totalCartAmount,
-              paymentMethod: paymentMethod
-            }));
-            
-            toast({ 
-              title: "Order placed successfully!",
-              description: "Pay when your items arrive.",
-            });
-            
-            // Navigate to order success page
-            navigate(`/shop/order-success/${orderId}`);
-          } else {
-            console.error("Order ID not found in response:", result);
-            toast({
-              title: "Order created but couldn't view details",
-              description: "Please check your orders page.",
-              variant: "default",
-            });
-            navigate("/shop/account");
-          }
-        } else {
-          throw new Error(result?.message || "Order creation failed");
+
+      const orderData = {
+        userId: user?.id,
+        cartId: cartItems?._id,
+        cartItems: cartItems.items.map((item) => ({
+          productId: item?.productId,
+          title: item?.title,
+          image: item?.image,
+          price: item?.salePrice || item?.price,
+          quantity: item?.quantity,
+        })),
+        shippingAddress: {
+          address: currentSelectedAddress?.address || "",
+          city: currentSelectedAddress?.city || "",
+          postalCode: currentSelectedAddress?.pincode || "",
+          country: "Nepal",
+          phone: currentSelectedAddress?.phone || "",
+          notes: currentSelectedAddress?.notes || "",
+        },
+        paymentMethod: paymentMethod,
+        paymentStatus: "pending",
+        itemsPrice: totalCartAmount,
+        shippingPrice: 0,
+        taxPrice: 0,
+        totalPrice: totalCartAmount,
+        orderStatus: "pending",
+        isPaid: false,
+        user: {
+          userName: user?.userName || "FitMart Customer",
+          email: user?.email || "customer@fitmart.com",
+        },
+      };
+
+      const action = await dispatch(createNewOrder(orderData));
+      const result = action.payload;
+
+      if (result?.success) {
+        if (paymentMethod === "khalti") {
+          sessionStorage.setItem("currentOrderId", result.orderId);
+          localStorage.setItem('latestOrder', JSON.stringify({
+            orderId: result.orderId,
+            totalAmount: totalCartAmount,
+            paymentMethod: paymentMethod,
+          }));
+          window.location.href = result.payment_url;
+        } else if (paymentMethod === "cod") {
+          localStorage.setItem('latestOrder', JSON.stringify({
+            orderId: result.orderId,
+            totalAmount: totalCartAmount,
+            paymentMethod: paymentMethod,
+          }));
+          toast({ 
+            title: "Order placed successfully!",
+            description: "Pay when your items arrive.",
+          });
+          navigate(`/shop/order-success/${result.orderId}`);
         }
+      } else {
+        throw new Error(result?.message || "Order creation failed");
       }
     } catch (error) {
       console.error("Order placement error:", error);
@@ -161,7 +140,7 @@ function ShoppingCheckout() {
           <div className="border-t pt-4 mb-6">
             <div className="flex justify-between text-lg font-semibold">
               <span>Total</span>
-              <span>$ {totalCartAmount.toFixed(2)}</span>
+              <span>NPR {totalCartAmount.toFixed(2)}</span>
             </div>
           </div>
 
@@ -183,7 +162,6 @@ function ShoppingCheckout() {
                 <div className="flex-1">
                   <span className="font-medium block">Pay with Khalti</span>
                   <span className="text-sm text-gray-500">Fast and secure digital payment</span>
-                  <span className="text-xs text-purple-600 mt-1 italic">(Coming soon)</span>
                 </div>
                 {paymentMethod === "khalti" && (
                   <span className="ml-auto text-purple-600 text-lg">✓</span>

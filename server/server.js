@@ -1,4 +1,4 @@
-require('dotenv').config(); // Load environment variables
+require('dotenv').config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cookieParser = require("cookie-parser");
@@ -13,40 +13,35 @@ const shopOrderRouter = require("./routes/shop/order-routes");
 const shopSearchRouter = require("./routes/shop/search-routes");
 const shopReviewRouter = require("./routes/shop/review-routes");
 const commonFeatureRouter = require("./routes/common/feature-routes");
-const khalti = require("./controllers/shop/initializekhalti");
+const khaltiRouter = require("./routes/shop/khalti-payment-router");
 
-// Verify environment variables are being read
 console.log('MongoDB URI:', process.env.MONGO_URI ? 'Set (hidden for security)' : 'NOT SET');
 console.log('Cloudinary Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME || 'NOT SET');
-console.log('Email Provider:', process.env.EMAIL_USER ? 'Set (hidden for security)' : 'NOT SET'); 
+console.log('Email Provider:', process.env.EMAIL_USER ? 'Set (hidden for security)' : 'NOT SET');
+console.log('Khalti Secret Key:', process.env.KHALTI_SECRET_KEY ? 'Set (hidden for security)' : 'NOT SET');
+console.log('Khalti Gateway URL:', process.env.KHALTI_GATEWAY_URL || 'NOT SET');
 
-// Verify essential email variables for OTP functionality
 if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
   console.warn('WARNING: EMAIL_USER or EMAIL_PASS environment variables not set. OTP email functionality will not work!');
 }
 
-// Connect to MongoDB
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch((error) => console.log("MongoDB connection error: ", error));
+if (!process.env.KHALTI_SECRET_KEY || !process.env.KHALTI_GATEWAY_URL) {
+  console.warn('WARNING: KHALTI_SECRET_KEY or KHALTI_GATEWAY_URL not set. Khalti payment functionality will not work!');
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Updated allowed origins to include both ports common for React development
 const allowedOrigins = [
-  'http://localhost:5173',  // Vite default
-  'http://localhost:3000',  // Create React App default
-  'http://127.0.0.1:5173',  // Alternative Vite URL
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
   'https://your-production-domain.com'
 ];
 
-// CORS configuration - Fixed to properly handle preflight requests
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
@@ -54,28 +49,24 @@ app.use(
         callback(new Error('Not allowed by CORS'));
       }
     },
-    credentials: true, // This is crucial for cookies
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [
-      "Content-Type", 
-      "Authorization", 
-      "Origin", 
-      "X-Requested-With", 
-      "Accept", 
+      "Content-Type",
+      "Authorization",
+      "Origin",
+      "X-Requested-With",
+      "Accept",
       "Cache-Control",
       "X-CSRF-Token"
     ]
   })
 );
 
-// Increase JSON payload limit for file uploads if needed
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-
-// Cookie parser middleware - BEFORE routes
 app.use(cookieParser());
 
-// Request logging in development
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.originalUrl}`);
@@ -83,7 +74,6 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// Now set up routes
 const apiRouter = express.Router();
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/admin/products", adminProductsRouter);
@@ -95,28 +85,33 @@ apiRouter.use("/shop/order", shopOrderRouter);
 apiRouter.use("/shop/search", shopSearchRouter);
 apiRouter.use("/shop/review", shopReviewRouter);
 apiRouter.use("/common/feature", commonFeatureRouter);
-apiRouter.use("/payment", khalti);
+apiRouter.use("/payment", khaltiRouter);
 app.use("/api", apiRouter);
 
-// Add a health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
+  res.status(500).json({
     success: false,
     message: 'Something went wrong!',
     error: process.env.NODE_ENV !== 'production' ? err.message : undefined
   });
 });
 
-// Start server
-app.listen(PORT, () => console.log(`Server is now running on port ${PORT}`));
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log("MongoDB connected");
+    app.listen(PORT, () => console.log(`Server is now running on port ${PORT}`));
+  })
+  .catch((error) => {
+    console.log("MongoDB connection error: ", error);
+    process.exit(1);
+  });
 
-// Graceful shutdown
 process.on('SIGINT', () => {
   mongoose.connection.close(() => {
     console.log('MongoDB connection closed due to app termination');

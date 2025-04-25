@@ -7,18 +7,26 @@ const purchasedItemSchema = new mongoose.Schema({
       name: String,
       quantity: Number,
       unitPrice: Number,
-    }
+    },
   ],
   totalPrice: Number,
   paymentMethod: String,
   status: {
     type: String,
-    default: "pending"
+    default: "pending",
+  },
+  shippingAddress: {
+    name: String,
+    email: String,
+    phone: String,
+    address: String,
+    city: String,
+    postalCode: String,
   },
   purchaseDate: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
 module.exports = mongoose.model("PurchasedItem", purchasedItemSchema);

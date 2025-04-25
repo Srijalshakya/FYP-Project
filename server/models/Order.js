@@ -64,23 +64,17 @@ const orderSchema = new mongoose.Schema({
   paymentMethod: {
     type: String,
     required: true,
-    enum: ["COD", "paypal", "khalti", "card"],
+    enum: ["cod", "khalti"],
   },
   paymentStatus: {
     type: String,
     required: true,
-    enum: ["pending", "paid", "failed", "refunded"],
+    enum: ["pending", "completed", "failed", "refunded"],
     default: "pending",
   },
   isPaid: {
     type: Boolean,
     default: false,
-  },
-  paymentId: {
-    type: String,
-  },
-  payerId: {
-    type: String,
   },
   orderStatus: {
     type: String,

@@ -1,7 +1,7 @@
 "use client"
 
 import { Dumbbell, LogOut, Menu, ShoppingCart, UserCog } from "lucide-react"
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet"
 import { Button } from "../ui/button"
 import { useDispatch, useSelector } from "react-redux"
@@ -18,9 +18,8 @@ import { logoutUser } from "@/store/auth-slice"
 import UserCartWrapper from "./cart-wrapper"
 import { useEffect, useState } from "react"
 import { fetchCartItems } from "@/store/shop/cart-slice"
-import { Label } from "../ui/label"
+import { motion } from "framer-motion"
 
-// Updated menu items for gym equipment
 const gymEquipmentMenuItems = [
   { id: "home", label: "Home", path: "/shop/home" },
   { id: "strength-training", label: "Strength Training", path: "/shop/listing" },
@@ -28,39 +27,44 @@ const gymEquipmentMenuItems = [
   { id: "weight-training", label: "Weight Training", path: "/shop/listing" },
   { id: "accessories", label: "Accessories", path: "/shop/listing" },
   { id: "deals", label: "Special Deals", path: "/shop/listing" },
+  { id: "search", label: "Search", path: "/shop/search" },
 ]
 
 function MenuItems() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const [searchParams, setSearchParams] = useSearchParams()
 
   function handleNavigate(getCurrentMenuItem) {
+    console.log("Menu Item Clicked:", getCurrentMenuItem)
+    if (getCurrentMenuItem.id === "home" || getCurrentMenuItem.id === "search") {
+      navigate(getCurrentMenuItem.path)
+      return
+    }
+
     sessionStorage.removeItem("filters")
-    const currentFilter =
-      getCurrentMenuItem.id !== "home" && getCurrentMenuItem.id !== "deals"
-        ? {
-            category: [getCurrentMenuItem.id],
-          }
-        : null
-
+    const currentFilter = {
+      category: [getCurrentMenuItem.id],
+    }
+    if (getCurrentMenuItem.id === "deals") {
+      currentFilter.deals = true
+      delete currentFilter.category
+    }
     sessionStorage.setItem("filters", JSON.stringify(currentFilter))
-
-    location.pathname.includes("listing") && currentFilter !== null
-      ? setSearchParams(new URLSearchParams(`?category=${getCurrentMenuItem.id}`))
-      : navigate(getCurrentMenuItem.path)
+    navigate(`${getCurrentMenuItem.path}?${getCurrentMenuItem.id === "deals" ? "deals=true" : `category=${getCurrentMenuItem.id}`}`)
   }
 
   return (
-    <nav className="flex flex-col mb-3 lg:mb-0 lg:items-center gap-6 lg:flex-row">
+    <nav className="flex flex-col mb-3 lg:mb-0 lg:items-center gap-4 lg:flex-row">
       {gymEquipmentMenuItems.map((menuItem) => (
-        <Label
-          onClick={() => handleNavigate(menuItem)}
-          className="text-sm font-medium cursor-pointer hover:text-primary transition-colors"
+        <div
           key={menuItem.id}
+          className="text-sm font-semibold uppercase cursor-pointer text-gray-300 hover:text-red-600 transition-colors"
+          onClick={() => handleNavigate(menuItem)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === "Enter" && handleNavigate(menuItem)}
         >
           {menuItem.label}
-        </Label>
+        </div>
       ))}
     </nav>
   )
@@ -87,43 +91,58 @@ function HeaderRightContent() {
     <div className="flex lg:items-center lg:flex-row flex-col gap-4">
       <Sheet open={openCartSheet} onOpenChange={setOpenCartSheet}>
         <SheetTrigger asChild>
-          <Button variant="outline" size="icon" className="relative">
-            <ShoppingCart className="w-6 h-6" />
-            <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground w-5 h-5 rounded-full text-xs flex items-center justify-center font-bold">
-              {cartItems?.items?.length || 0}
-            </span>
-            <span className="sr-only">Shopping cart</span>
-          </Button>
+          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            <Button variant="outline" size="icon" className="relative bg-gray-800 border-red-600/50 text-white hover:bg-red-600/20">
+              <ShoppingCart className="w-6 h-6" />
+              <span className="absolute -top-1 -right-1 bg-red-600 text-white w-5 h-5 rounded-full text-xs flex items-center justify-center font-bold">
+                {cartItems?.items?.length || 0}
+              </span>
+              <span className="sr-only">Shopping cart</span>
+            </Button>
+          </motion.div>
         </SheetTrigger>
-        <UserCartWrapper
-          setOpenCartSheet={setOpenCartSheet}
-          cartItems={cartItems && cartItems.items && cartItems.items.length > 0 ? cartItems.items : []}
-        />
+        <SheetContent className="bg-gray-900 text-white border-red-600/50">
+          <UserCartWrapper
+            setOpenCartSheet={setOpenCartSheet}
+            cartItems={cartItems && cartItems.items && cartItems.items.length > 0 ? cartItems.items : []}
+          />
+        </SheetContent>
       </Sheet>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-            <Avatar>
-              <AvatarFallback className="bg-primary text-primary-foreground font-bold">
-                {user?.userName?.[0]?.toUpperCase() || "F"}
-              </AvatarFallback>
-            </Avatar>
-          </Button>
+          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            <Button variant="ghost" className="relative h-9 w-9 rounded-full bg-gray-800 border-red-600/50">
+              <Avatar>
+                <AvatarFallback className="bg-red-600 text-white font-bold">
+                  {user?.userName?.[0]?.toUpperCase() || "F"}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </motion.div>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>My Fitmart Account</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => navigate("/shop/account")}>
+        <DropdownMenuContent align="end" className="w-56 bg-gray-900 text-white border-red-600/50">
+          <DropdownMenuLabel className="text-red-600">My FitMart Account</DropdownMenuLabel>
+          <DropdownMenuSeparator className="bg-red-600/30" />
+          <DropdownMenuItem
+            onClick={() => navigate("/shop/account")}
+            className="hover:bg-red-600/20 focus:bg-red-600/20 text-gray-300 hover:text-white"
+          >
             <UserCog className="mr-2 h-4 w-4" />
             Account Settings
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate("/shop/orders")}>
+          <DropdownMenuItem
+            onClick={() => navigate("/shop/orders")}
+            className="hover:bg-red-600/20 focus:bg-red-600/20 text-gray-300 hover:text-white"
+          >
             <ShoppingCart className="mr-2 h-4 w-4" />
             Order History
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout}>
+          <DropdownMenuSeparator className="bg-red-600/30" />
+          <DropdownMenuItem
+            onClick={handleLogout}
+            className="hover:bg-red-600/20 focus:bg-red-600/20 text-gray-300 hover:text-white"
+          >
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out
           </DropdownMenuItem>
@@ -137,24 +156,33 @@ function ShoppingHeader() {
   const { isAuthenticated } = useSelector((state) => state.auth)
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background">
-      <div className="container flex h-16 items-center justify-between">
+    <motion.header
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="sticky top-0 z-40 w-full bg-gray-900/80 backdrop-blur-md border-b border-red-600/30"
+    >
+      <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link to="/shop/home" className="flex items-center gap-2">
-          <Dumbbell className="h-6 w-6 text-primary" />
-          <span className="font-bold text-xl">Fitmart</span>
+          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            <Dumbbell className="h-8 w-8 text-red-600" />
+          </motion.div>
+          <span className="font-bold text-2xl uppercase text-red-600 tracking-wider">FitMart</span>
         </Link>
         <Sheet>
           <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="lg:hidden">
-              <Menu className="h-6 w-6" />
-              <span className="sr-only">Toggle menu</span>
-            </Button>
+            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <Button variant="outline" size="icon" className="lg:hidden bg-gray-800 border-red-600/50 text-white hover:bg-red-600/20">
+                <Menu className="h-6 w-6" />
+                <span className="sr-only">Toggle menu</span>
+              </Button>
+            </motion.div>
           </SheetTrigger>
-          <SheetContent side="left" className="w-full max-w-xs">
+          <SheetContent side="left" className="w-full max-w-xs bg-gray-900 text-white border-red-600/50">
             <div className="flex flex-col gap-6">
               <Link to="/shop/home" className="flex items-center gap-2">
-                <Dumbbell className="h-6 w-6 text-primary" />
-                <span className="font-bold text-xl">Fitmart</span>
+                <Dumbbell className="h-8 w-8 text-red-600" />
+                <span className="font-bold text-2xl uppercase text-red-600 tracking-wider">FitMart</span>
               </Link>
               <MenuItems />
               {isAuthenticated && <HeaderRightContent />}
@@ -170,9 +198,8 @@ function ShoppingHeader() {
           </div>
         )}
       </div>
-    </header>
+    </motion.header>
   )
 }
 
-export default ShoppingHeader;
-
+export default ShoppingHeader

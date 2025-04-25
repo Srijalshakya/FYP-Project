@@ -41,7 +41,7 @@ router.post("/initialize-khalti", async (req, res) => {
       items: purchasedItems,
       totalPrice: totalAmount * 100, // Khalti requires paisa
       paymentMethod: "khalti",
-      status: "pending",
+      status: "Completed",
       shippingAddress // Add shipping address to the purchase
     });
 
