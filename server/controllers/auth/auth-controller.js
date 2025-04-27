@@ -11,7 +11,7 @@ const registerUser = async (req, res) => {
     // Validate input
     if (!userName || !email || !password) {
       return res.status(400).json({
-        success: falso,
+        success: false,
         message: "Please provide all required fields",
       });
     }
@@ -485,6 +485,144 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
+// Get All Users (Admin Only)
+const getAllUsers = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin privileges required.",
+      });
+    }
+
+    const users = await User.find({}, "userName email isVerified role").lean();
+    res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } catch (e) {
+    console.error("Get all users error:", e);
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred while fetching users",
+    });
+  }
+};
+
+// Update User (Admin Only)
+const updateUser = async (req, res) => {
+  const { userId } = req.params;
+  const { userName, password } = req.body;
+
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin privileges required.",
+      });
+    }
+
+    if (!userName && !password) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one field (username or password) must be provided",
+      });
+    }
+
+    const updateData = {};
+    if (userName) {
+      updateData.userName = userName;
+    }
+    if (password) {
+      if (!/^(?=.*[A-Z])(?=.*[0-9])[A-Za-z0-9]+$/.test(password)) {
+        return res.status(400).json({
+          success: false,
+          message: "Password must contain at least one capital letter, one number, and only letters/numbers",
+        });
+      }
+      updateData.password = await bcrypt.hash(password, 12);
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).lean();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "User updated successfully",
+      data: {
+        userName: user.userName,
+        email: user.email,
+        isVerified: user.isVerified,
+        role: user.role,
+      },
+    });
+  } catch (e) {
+    console.error("Update user error:", e);
+    if (e.code === 11000) {
+      const field = Object.keys(e.keyValue)[0];
+      return res.status(400).json({
+        success: false,
+        message: `${field.charAt(0).toUpperCase() + field.slice(1)} already in use`,
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred while updating user",
+    });
+  }
+};
+
+// Delete User (Admin Only)
+const deleteUser = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin privileges required.",
+      });
+    }
+
+    // Prevent admin from deleting themselves
+    if (req.user.id === userId) {
+      return res.status(403).json({
+        success: false,
+        message: "Admins cannot delete their own account.",
+      });
+    }
+
+    const user = await User.findByIdAndDelete(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(204).json({
+      success: true,
+      message: "User deleted successfully",
+    });
+  } catch (e) {
+    console.error("Delete user error:", e);
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred while deleting user",
+    });
+  }
+};
+
 module.exports = { 
   registerUser, 
   loginUser, 
@@ -493,5 +631,8 @@ module.exports = {
   verifyOtp, 
   resendOtp, 
   forgotPassword, 
-  resetPassword 
+  resetPassword,
+  getAllUsers,
+  updateUser,
+  deleteUser // Export the new deleteUser function
 };

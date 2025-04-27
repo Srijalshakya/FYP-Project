@@ -8,6 +8,9 @@ const {
   resendOtp,
   forgotPassword,
   resetPassword,
+  getAllUsers,
+  updateUser,
+  deleteUser, // Import the deleteUser function
 } = require("../../controllers/auth/auth-controller");
 
 const router = express.Router();
@@ -27,5 +30,8 @@ router.get("/check-auth", authMiddleware, (req, res) => {
     user,
   });
 });
+router.get("/users", authMiddleware, getAllUsers);
+router.put("/users/:userId", authMiddleware, updateUser);
+router.delete("/users/:userId", authMiddleware, deleteUser); // Add the DELETE route
 
 module.exports = router;

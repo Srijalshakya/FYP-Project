@@ -18,10 +18,11 @@ function ShoppingCheckout() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const totalCartAmount = cartItems?.items?.reduce(
-    (sum, item) => sum + (item?.salePrice || item?.price) * item?.quantity,
-    0
-  ) || 0;
+  const totalCartAmount =
+    cartItems?.items?.reduce(
+      (sum, item) => sum + (item?.salePrice || item?.price) * item?.quantity,
+      0
+    ) || 0;
 
   const handlePaymentSelection = (method) => {
     if (["cod", "khalti"].includes(method)) {
@@ -41,6 +42,7 @@ function ShoppingCheckout() {
       });
       return;
     }
+
     try {
       setIsProcessing(true);
 
@@ -53,8 +55,12 @@ function ShoppingCheckout() {
           image: item?.image,
           price: item?.salePrice || item?.price,
           quantity: item?.quantity,
+          unitPrice: item?.salePrice || item?.price, // Ensure unitPrice is included for backend
+          itemId: item?.productId, // Ensure itemId is included for backend
         })),
         shippingAddress: {
+          name: user?.userName || "FitMart Customer",
+          email: user?.email || "customer@fitmart.com",
           address: currentSelectedAddress?.address || "",
           city: currentSelectedAddress?.city || "",
           postalCode: currentSelectedAddress?.pincode || "",
@@ -82,19 +88,25 @@ function ShoppingCheckout() {
       if (result?.success) {
         if (paymentMethod === "khalti") {
           sessionStorage.setItem("currentOrderId", result.orderId);
-          localStorage.setItem('latestOrder', JSON.stringify({
-            orderId: result.orderId,
-            totalAmount: totalCartAmount,
-            paymentMethod: paymentMethod,
-          }));
+          localStorage.setItem(
+            "latestOrder",
+            JSON.stringify({
+              orderId: result.orderId,
+              totalAmount: totalCartAmount,
+              paymentMethod: paymentMethod,
+            })
+          );
           window.location.href = result.payment_url;
         } else if (paymentMethod === "cod") {
-          localStorage.setItem('latestOrder', JSON.stringify({
-            orderId: result.orderId,
-            totalAmount: totalCartAmount,
-            paymentMethod: paymentMethod,
-          }));
-          toast({ 
+          localStorage.setItem(
+            "latestOrder",
+            JSON.stringify({
+              orderId: result.orderId,
+              totalAmount: totalCartAmount,
+              paymentMethod: paymentMethod,
+            })
+          );
+          toast({
             title: "Order placed successfully!",
             description: "Pay when your items arrive.",
           });
@@ -107,7 +119,7 @@ function ShoppingCheckout() {
       console.error("Order placement error:", error);
       toast({
         title: "Order Error",
-        description: error.message || "Failed to place order",
+        description: error.message || "Failed to place order. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -118,25 +130,25 @@ function ShoppingCheckout() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <h1 className="text-2xl font-bold mb-8">Checkout</h1>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <h2 className="text-xl font-semibold mb-4">Shipping Information</h2>
-          <Address 
-            selectedId={currentSelectedAddress?._id} 
-            setCurrentSelectedAddress={setCurrentSelectedAddress} 
+          <Address
+            selectedId={currentSelectedAddress?._id}
+            setCurrentSelectedAddress={setCurrentSelectedAddress}
           />
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
-          
+
           <div className="space-y-4 mb-6">
             {cartItems?.items?.map((item) => (
               <UserCartItemsContent key={item.productId} cartItem={item} />
             ))}
           </div>
-          
+
           <div className="border-t pt-4 mb-6">
             <div className="flex justify-between text-lg font-semibold">
               <span>Total</span>
@@ -146,13 +158,13 @@ function ShoppingCheckout() {
 
           <div className="mb-6">
             <h3 className="text-lg font-medium mb-3">Select Payment Method</h3>
-            
+
             <div className="grid gap-4">
               <button
                 onClick={() => handlePaymentSelection("khalti")}
                 className={`flex items-center gap-3 p-4 border rounded-lg transition-all ${
-                  paymentMethod === "khalti" 
-                    ? "border-purple-500 ring-2 ring-purple-200 bg-purple-50" 
+                  paymentMethod === "khalti"
+                    ? "border-purple-500 ring-2 ring-purple-200 bg-purple-50"
                     : "hover:border-gray-300"
                 }`}
               >
@@ -171,8 +183,8 @@ function ShoppingCheckout() {
               <button
                 onClick={() => handlePaymentSelection("cod")}
                 className={`flex items-center gap-3 p-4 border rounded-lg transition-all ${
-                  paymentMethod === "cod" 
-                    ? "border-blue-500 ring-2 ring-blue-200 bg-blue-50" 
+                  paymentMethod === "cod"
+                    ? "border-blue-500 ring-2 ring-blue-200 bg-blue-50"
                     : "hover:border-gray-300"
                 }`}
               >
@@ -190,9 +202,9 @@ function ShoppingCheckout() {
             </div>
           </div>
 
-          <Button 
+          <Button
             onClick={handlePlaceOrder}
-            className="w-full py-6 text-lg" 
+            className="w-full py-6 text-lg"
             disabled={isProcessing || !paymentMethod || !currentSelectedAddress}
           >
             {isProcessing ? "Processing..." : "Place Order"}

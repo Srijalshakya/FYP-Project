@@ -1,4 +1,6 @@
 import { Route, Routes } from "react-router-dom";
+import { ToastContainer } from "react-toastify"; // Import ToastContainer
+import "react-toastify/dist/ReactToastify.css"; // Import toastify styles
 import AuthLayout from "./components/auth/layout";
 import AuthLogin from "./pages/auth/login";
 import AuthRegister from "./pages/auth/register";
@@ -7,6 +9,7 @@ import AdminDashboard from "./pages/admin-view/dashboard";
 import AdminProducts from "./pages/admin-view/products";
 import AdminOrders from "./pages/admin-view/orders";
 import AdminFeatures from "./pages/admin-view/features";
+import AdminUsers from "./pages/admin-view/users";
 import ShoppingLayout from "./components/shopping-view/layout";
 import NotFound from "./pages/not-found";
 import ShoppingHome from "./pages/shopping-view/home";
@@ -24,8 +27,6 @@ import PaymentCancelPage from "./pages/shopping-view/payment-cancel";
 import KhaltiReturnPage from "./pages/shopping-view/khalti-return";
 import SearchProducts from "./pages/shopping-view/search";
 import OrderSuccessPage from "./pages/shopping-view/OrderSuccessPage";
-// Remove this import
-// import ProtectedRoute from "./ProtectedRoute";
 
 function App() {
   const { user, isAuthenticated, isLoading } = useSelector(
@@ -56,6 +57,19 @@ function App() {
 
   return (
     <div className="flex flex-col overflow-hidden bg-white">
+      {/* Add ToastContainer to render toast notifications */}
+      <ToastContainer
+        position="top-center"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        style={{ zIndex: 9999 }} // Ensure toasts are on top of other elements
+      />
       <Routes>
         <Route
           path="/"
@@ -82,11 +96,11 @@ function App() {
             </CheckAuth>
           }
         >
-          {/* Replace ProtectedRoute with direct elements */}
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="products" element={<AdminProducts />} />
           <Route path="orders" element={<AdminOrders />} />
           <Route path="features" element={<AdminFeatures />} />
+          <Route path="users" element={<AdminUsers />} />
         </Route>
         <Route
           path="/shop"
@@ -98,7 +112,6 @@ function App() {
         >
           <Route path="home" element={<ShoppingHome />} />
           <Route path="listing" element={<ShoppingListing />} />
-          {/* Replace these with direct elements too */}
           <Route path="checkout" element={<ShoppingCheckout />} />
           <Route path="account" element={<ShoppingAccount />} />
           <Route path="payment-success" element={<PaymentSuccessPage />} />
