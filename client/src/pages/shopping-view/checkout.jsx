@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
@@ -14,15 +14,43 @@ function ShoppingCheckout() {
   const [currentSelectedAddress, setCurrentSelectedAddress] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [consistentTotalCartAmount, setConsistentTotalCartAmount] = useState(0);
+  const [originalTotalCartAmount, setOriginalTotalCartAmount] = useState(0);
   const dispatch = useDispatch();
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const totalCartAmount =
-    cartItems?.items?.reduce(
-      (sum, item) => sum + (item?.salePrice || item?.price) * item?.quantity,
+  useEffect(() => {
+    // Calculate original total (without discounts)
+    const originalTotal = cartItems?.items?.reduce(
+      (sum, item) => sum + (item?.originalPrice || item?.price) * item?.quantity,
       0
     ) || 0;
+
+    // Calculate total with discounts applied
+    const total = cartItems?.items?.reduce(
+      (sum, item) =>
+        sum +
+        (item?.discountedPrice !== null && item?.discountedPrice !== undefined
+          ? item.discountedPrice
+          : item?.salePrice > 0
+          ? item.salePrice
+          : item?.price) *
+          item?.quantity,
+      0
+    ) || 0;
+
+    setOriginalTotalCartAmount(originalTotal);
+    setConsistentTotalCartAmount(total);
+    console.log("Original Total Cart Amount (USD):", originalTotal);
+    console.log("Discounted Total Cart Amount (USD):", total);
+    console.log("Initial Cart Items:", cartItems);
+  }, [cartItems]);
+
+  const EXCHANGE_RATE_USD_TO_NPR = 135;
+  const originalTotalCartAmountInNPR = originalTotalCartAmount * EXCHANGE_RATE_USD_TO_NPR;
+  const totalCartAmountInNPR = consistentTotalCartAmount * EXCHANGE_RATE_USD_TO_NPR;
+  const totalDiscountInNPR = originalTotalCartAmountInNPR - totalCartAmountInNPR;
 
   const handlePaymentSelection = (method) => {
     if (["cod", "khalti"].includes(method)) {
@@ -43,8 +71,24 @@ function ShoppingCheckout() {
       return;
     }
 
+    if (!user?.id) {
+      console.error("User ID is missing or invalid:", user);
+      toast({
+        title: "User Error",
+        description: "User ID is missing. Please log in again.",
+        variant: "destructive",
+      });
+      navigate("/auth/login");
+      return;
+    }
+
     try {
       setIsProcessing(true);
+
+      const totalCartAmountInPaisa = totalCartAmountInNPR * 100;
+
+      console.log("Total Cart Amount (USD) on Place Order:", consistentTotalCartAmount);
+      console.log("Total Cart Amount (Paisa) for Khalti:", totalCartAmountInPaisa);
 
       const orderData = {
         userId: user?.id,
@@ -53,10 +97,14 @@ function ShoppingCheckout() {
           productId: item?.productId,
           title: item?.title,
           image: item?.image,
-          price: item?.salePrice || item?.price,
+          price: item?.discountedPrice !== null && item?.discountedPrice !== undefined
+            ? item.discountedPrice
+            : item?.salePrice || item?.price,
           quantity: item?.quantity,
-          unitPrice: item?.salePrice || item?.price, // Ensure unitPrice is included for backend
-          itemId: item?.productId, // Ensure itemId is included for backend
+          unitPrice: item?.discountedPrice !== null && item?.discountedPrice !== undefined
+            ? item.discountedPrice
+            : item?.salePrice || item?.price,
+          itemId: item?.productId,
         })),
         shippingAddress: {
           name: user?.userName || "FitMart Customer",
@@ -70,10 +118,10 @@ function ShoppingCheckout() {
         },
         paymentMethod: paymentMethod,
         paymentStatus: "pending",
-        itemsPrice: totalCartAmount,
+        itemsPrice: consistentTotalCartAmount, // Use the discounted total
         shippingPrice: 0,
         taxPrice: 0,
-        totalPrice: totalCartAmount,
+        totalPrice: paymentMethod === "khalti" ? totalCartAmountInPaisa : consistentTotalCartAmount,
         orderStatus: "pending",
         isPaid: false,
         user: {
@@ -81,6 +129,8 @@ function ShoppingCheckout() {
           email: user?.email || "customer@fitmart.com",
         },
       };
+
+      console.log("Order Data being sent to backend:", JSON.stringify(orderData, null, 2));
 
       const action = await dispatch(createNewOrder(orderData));
       const result = action.payload;
@@ -92,7 +142,7 @@ function ShoppingCheckout() {
             "latestOrder",
             JSON.stringify({
               orderId: result.orderId,
-              totalAmount: totalCartAmount,
+              totalAmount: consistentTotalCartAmount,
               paymentMethod: paymentMethod,
             })
           );
@@ -102,7 +152,7 @@ function ShoppingCheckout() {
             "latestOrder",
             JSON.stringify({
               orderId: result.orderId,
-              totalAmount: totalCartAmount,
+              totalAmount: consistentTotalCartAmount,
               paymentMethod: paymentMethod,
             })
           );
@@ -150,9 +200,21 @@ function ShoppingCheckout() {
           </div>
 
           <div className="border-t pt-4 mb-6">
-            <div className="flex justify-between text-lg font-semibold">
-              <span>Total</span>
-              <span>NPR {totalCartAmount.toFixed(2)}</span>
+            <div className="space-y-2">
+              <div className="flex justify-between text-base">
+                <span>Subtotal</span>
+                <span>NPR {originalTotalCartAmountInNPR.toFixed(2)}</span>
+              </div>
+              {totalDiscountInNPR > 0 && (
+                <div className="flex justify-between text-base text-green-600">
+                  <span>Discount</span>
+                  <span>-NPR {totalDiscountInNPR.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-lg font-semibold">
+                <span>Total</span>
+                <span>NPR {totalCartAmountInNPR.toFixed(2)}</span>
+              </div>
             </div>
           </div>
 

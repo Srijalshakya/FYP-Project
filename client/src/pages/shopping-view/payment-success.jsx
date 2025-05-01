@@ -1,20 +1,59 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getOrderDetails } from "@/store/shop/order-slice";
 import { jsPDF } from "jspdf";
 
+// Conversion rate: 1 USD = 135 NPR
+const USD_TO_NPR_RATE = 135;
+
+// Helper function to convert USD to NPR and round to 2 decimal places
+const convertUsdToNpr = (priceInUsd) => {
+  console.log(`Converting USD ${priceInUsd} to NPR at rate ${USD_TO_NPR_RATE}`);
+  const nprAmount = Number((priceInUsd * USD_TO_NPR_RATE).toFixed(2));
+  console.log(`Result: NPR ${nprAmount}`);
+  return nprAmount;
+};
+
 function PaymentSuccessPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { orderDetails, isLoading, error } = useSelector((state) => state.shopOrder);
   const [searchParams] = useSearchParams();
+  const { orderDetails, isLoading, error } = useSelector((state) => state.shopOrder);
   const orderId = searchParams.get("orderId");
+  const status = searchParams.get("status");
+  const reason = searchParams.get("reason");
+  const pidx = searchParams.get("pidx");
   const [retryCount, setRetryCount] = useState(0);
+
+  // Log query parameters for debugging
+  useEffect(() => {
+    const queryParams = Object.fromEntries(searchParams.entries());
+    console.log("PaymentSuccessPage URL:", window.location.href);
+    console.log("PaymentSuccessPage query params:", queryParams);
+
+    // Check for cancellation or failure indicators in query parameters
+    const statusLower = status ? status.toLowerCase() : "";
+    const reasonLower = reason ? reason.toLowerCase() : "";
+
+    if (
+      statusLower === "failed" ||
+      statusLower === "canceled" ||
+      statusLower === "initiated" ||
+      reasonLower.includes("cancel") ||
+      reasonLower.includes("fail") ||
+      (!statusLower && pidx) ||
+      (statusLower && statusLower !== "completed")
+    ) {
+      console.log("Detected cancellation or failure in query params, redirecting to payment-cancel:", { status, reason, pidx });
+      navigate(`/shop/payment-cancel?orderId=${orderId}&status=${status || "failed"}&reason=${reason || "payment_canceled"}`, {
+        replace: true,
+      });
+    }
+  }, [status, reason, pidx, navigate, orderId, searchParams]);
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -22,11 +61,7 @@ function PaymentSuccessPage() {
         const result = await dispatch(getOrderDetails(orderId));
         if (!result.payload?.success) {
           console.log("Failed to fetch order details:", result.payload);
-          toast({
-            title: "Error",
-            description: "Failed to fetch order details",
-            variant: "destructive",
-          });
+          toast.error("Failed to fetch order details");
         } else if (result.payload.data.paymentStatus !== "completed" && retryCount < 10) {
           console.log(`Payment status not completed (attempt ${retryCount + 1}/10). Retrying...`);
           setTimeout(() => {
@@ -35,14 +70,10 @@ function PaymentSuccessPage() {
           }, 5000);
         } else if (result.payload.data.paymentStatus !== "completed") {
           console.log("Max retries reached. Payment status still not completed:", result.payload.data);
-          toast({
-            title: "Payment Status Error",
-            description: "Payment status could not be updated to completed. Please contact support.",
-            variant: "destructive",
-          });
+          toast.error("Payment status could not be updated to completed. Please contact support.");
         }
       } else {
-        const latestOrder = JSON.parse(localStorage.getItem("latestOrder"));
+        const latestOrder = JSON.parse(localStorage.getItem("latestOrder") || "{}");
         if (latestOrder?.orderId) {
           dispatch(getOrderDetails(latestOrder.orderId));
         } else {
@@ -52,7 +83,7 @@ function PaymentSuccessPage() {
     };
 
     fetchOrderDetails();
-  }, [dispatch, orderId, navigate, toast, retryCount]);
+  }, [dispatch, orderId, navigate, retryCount]);
 
   const generatePDF = () => {
     if (!orderDetails) return;
@@ -75,11 +106,13 @@ function PaymentSuccessPage() {
     doc.text("Items:", 20, 140);
     let y = 150;
     orderDetails.cartItems.forEach((item, index) => {
-      doc.text(`${index + 1}. ${item.title} (x${item.quantity}) - NPR ${item.price.toFixed(2)}`, 20, y);
+      const itemPriceInNpr = convertUsdToNpr(item.price);
+      doc.text(`${index + 1}. ${item.title} (x${item.quantity}) - NPR ${itemPriceInNpr.toFixed(2)}`, 20, y);
       y += 10;
     });
 
-    doc.text(`Total Amount: NPR ${orderDetails.totalAmount.toFixed(2)}`, 20, y + 10);
+    const totalAmountInNpr = convertUsdToNpr(orderDetails.totalAmount);
+    doc.text(`Total Amount: NPR ${totalAmountInNpr.toFixed(2)}`, 20, y + 10);
     doc.text("Thank you for shopping with FitMart!", 20, y + 30);
 
     doc.save(`FitMart_Receipt_${orderDetails._id}.pdf`);
@@ -107,6 +140,17 @@ function PaymentSuccessPage() {
     );
   }
 
+  // Convert totalAmount and cartItems prices to NPR for display
+  const totalAmountInNpr = convertUsdToNpr(orderDetails.totalAmount);
+  const cartItemsWithNpr = orderDetails.cartItems.map(item => {
+    console.log(`Cart item ${item.title}: price in USD = ${item.price}`);
+    const priceInNpr = convertUsdToNpr(item.price);
+    return {
+      ...item,
+      price: priceInNpr,
+    };
+  });
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4">
       <Card className="w-full max-w-lg">
@@ -120,12 +164,12 @@ function PaymentSuccessPage() {
             <p><strong>Date:</strong> {new Date(orderDetails.orderDate).toLocaleDateString()}</p>
             <p><strong>Payment Method:</strong> {orderDetails.paymentMethod.toUpperCase()}</p>
             <p><strong>Payment Status:</strong> {orderDetails.paymentStatus.toUpperCase()}</p>
-            <p><strong>Total:</strong> NPR {orderDetails.totalAmount.toFixed(2)}</p>
+            <p><strong>Total:</strong> NPR {totalAmountInNpr.toFixed(2)}</p>
             <p><strong>Shipping Address:</strong> {orderDetails.addressInfo.address}, {orderDetails.addressInfo.city}, {orderDetails.addressInfo.postalCode}</p>
           </div>
           <div className="space-y-2">
             <p><strong>Items:</strong></p>
-            {orderDetails.cartItems.map((item) => (
+            {cartItemsWithNpr.map((item) => (
               <p key={item.productId}>{item.title} (x{item.quantity}) - NPR {item.price.toFixed(2)}</p>
             ))}
           </div>

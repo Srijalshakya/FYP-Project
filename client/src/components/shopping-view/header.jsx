@@ -1,7 +1,7 @@
 "use client"
 
 import { Dumbbell, LogOut, Menu, ShoppingCart, UserCog } from "lucide-react"
-import { Link, useNavigate, useSearchParams } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet"
 import { Button } from "../ui/button"
 import { useDispatch, useSelector } from "react-redux"
@@ -22,12 +22,8 @@ import { motion } from "framer-motion"
 
 const gymEquipmentMenuItems = [
   { id: "home", label: "Home", path: "/shop/home" },
-  { id: "strength-training", label: "Strength Training", path: "/shop/listing" },
-  { id: "cardio-equipment", label: "Cardio Equipment", path: "/shop/listing" },
-  { id: "weight-training", label: "Weight Training", path: "/shop/listing" },
-  { id: "accessories", label: "Accessories", path: "/shop/listing" },
-  { id: "deals", label: "Special Deals", path: "/shop/listing" },
-  { id: "search", label: "Search", path: "/shop/search" },
+  { id: "about", label: "About", path: "/shop/about" },
+  { id: "equipments", label: "Equipments", path: "/shop/listing" },
 ]
 
 function MenuItems() {
@@ -35,21 +31,18 @@ function MenuItems() {
 
   function handleNavigate(getCurrentMenuItem) {
     console.log("Menu Item Clicked:", getCurrentMenuItem)
-    if (getCurrentMenuItem.id === "home" || getCurrentMenuItem.id === "search") {
+    if (getCurrentMenuItem.id === "home" || getCurrentMenuItem.id === "about") {
       navigate(getCurrentMenuItem.path)
       return
     }
 
-    sessionStorage.removeItem("filters")
-    const currentFilter = {
-      category: [getCurrentMenuItem.id],
+    // Handle "Equipments" (same as Special Deals functionality)
+    if (getCurrentMenuItem.id === "equipments") {
+      sessionStorage.removeItem("filters")
+      const currentFilter = { deals: true }
+      sessionStorage.setItem("filters", JSON.stringify(currentFilter))
+      navigate(`${getCurrentMenuItem.path}?deals=true`)
     }
-    if (getCurrentMenuItem.id === "deals") {
-      currentFilter.deals = true
-      delete currentFilter.category
-    }
-    sessionStorage.setItem("filters", JSON.stringify(currentFilter))
-    navigate(`${getCurrentMenuItem.path}?${getCurrentMenuItem.id === "deals" ? "deals=true" : `category=${getCurrentMenuItem.id}`}`)
   }
 
   return (
@@ -202,4 +195,4 @@ function ShoppingHeader() {
   )
 }
 
-export default ShoppingHeader
+export default ShoppingHeader;

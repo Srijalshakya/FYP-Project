@@ -71,6 +71,19 @@ function UserCartItemsContent({ cartItem }) {
     });
   }
 
+  // Determine the display price (use discountedPrice if available, otherwise salePrice or price)
+  const displayPrice =
+    cartItem?.discountedPrice !== null && cartItem?.discountedPrice !== undefined
+      ? cartItem.discountedPrice
+      : cartItem?.salePrice > 0
+      ? cartItem.salePrice
+      : cartItem?.price;
+
+  // Determine if there's a discount to show the original price with a strikethrough
+  const showOriginalPrice =
+    (cartItem?.discountedPrice !== null && cartItem?.discountedPrice !== undefined) ||
+    cartItem?.salePrice > 0;
+
   return (
     <div className="flex items-center space-x-4">
       <img
@@ -99,18 +112,21 @@ function UserCartItemsContent({ cartItem }) {
             onClick={() => handleUpdateQuantity(cartItem, "plus")}
           >
             <Plus className="w-4 h-4" />
-            <span className="sr-only">Decrease</span>
+            <span className="sr-only">Increase</span>
           </Button>
         </div>
       </div>
       <div className="flex flex-col items-end">
-        <p className="font-semibold">
-          $
-          {(
-            (cartItem?.salePrice > 0 ? cartItem?.salePrice : cartItem?.price) *
-            cartItem?.quantity
-          ).toFixed(2)}
-        </p>
+        <div className="flex items-baseline gap-2">
+          <p className="font-semibold">
+            ${(displayPrice * cartItem?.quantity).toFixed(2)}
+          </p>
+          {showOriginalPrice && (
+            <p className="text-sm text-muted-foreground line-through">
+              ${((cartItem?.originalPrice || cartItem?.price) * cartItem?.quantity).toFixed(2)}
+            </p>
+          )}
+        </div>
         <Trash
           onClick={() => handleCartItemDelete(cartItem)}
           className="cursor-pointer mt-1"

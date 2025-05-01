@@ -1,262 +1,353 @@
-"use client"
+'use client';
 
-import { useEffect, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Address from "@/components/shopping-view/address";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useDispatch, useSelector } from "react-redux";
-import { useToast } from "@/components/ui/use-toast";
-import { updateUser } from "@/store/auth-slice";
-import { getOrderDetails, getAllOrdersByUserId } from "@/store/shop/order-slice";
-
-// Modified ShoppingOrders component
-function ModifiedShoppingOrders() {
-  const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
-  const dispatch = useDispatch();
-  const { user } = useSelector((state) => state.auth);
-  const { orderList, orderDetails } = useSelector((state) => state.shopOrder);
-  const { toast } = useToast();
-
-  function handleFetchOrderDetails(getId) {
-    dispatch(getOrderDetails(getId));
-  }
-
-  async function handleCancelOrder(orderId) {
-    try {
-      const response = await fetch(`/api/shop/order/cancel/${orderId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // Ensure cookies are sent
-      });
-      const result = await response.json();
-      if (result.success) {
-        toast({
-          title: "Order cancelled successfully",
-        });
-        dispatch(getAllOrdersByUserId(user.id));
-      } else {
-        console.error("Cancel failed:", result);
-        toast({
-          title: result.message || "Failed to cancel order",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Cancel error:", error);
-      toast({
-        title: "Error cancelling order",
-        variant: "destructive",
-      });
-    }
-  }
-
-  useEffect(() => {
-    if (user?.id) {
-      dispatch(getAllOrdersByUserId(user.id));
-    }
-  }, [dispatch, user?.id]);
-
-  useEffect(() => {
-    if (orderDetails !== null) setOpenDetailsDialog(true);
-  }, [orderDetails]);
-
-  return (
-    <div className="w-full">
-      {orderList && orderList.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr>
-                <th className="w-[100px] text-left">Order ID</th>
-                <th className="text-left">Equipment</th>
-                <th className="text-left">Order Date</th>
-                <th className="text-left">Status</th>
-                <th className="text-right">Total</th>
-                <th className="w-[150px] text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orderList.map((orderItem) => (
-                <tr key={orderItem?._id} className="border-b">
-                  <td className="font-medium py-2">#{orderItem?._id.slice(-6)}</td>
-                  <td>
-                    {orderItem?.cartItems?.[0]?.title}
-                    {orderItem?.cartItems?.length > 1 && (
-                      <span className="text-muted-foreground"> + {orderItem.cartItems.length - 1} more</span>
-                    )}
-                  </td>
-                  <td>{new Date(orderItem?.orderDate).toLocaleDateString()}</td>
-                  <td>
-                    <span
-                      className={`py-1 px-3 rounded text-white ${
-                        orderItem?.orderStatus === "confirmed"
-                          ? "bg-green-500"
-                          : orderItem?.orderStatus === "cancelled"
-                          ? "bg-red-500"
-                          : "bg-gray-500"
-                      }`}
-                    >
-                      {orderItem?.orderStatus?.charAt(0).toUpperCase() +
-                        orderItem?.orderStatus?.slice(1)}
-                    </span>
-                  </td>
-                  <td className="text-right">${orderItem?.totalAmount.toFixed(2)}</td>
-                  <td className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleFetchOrderDetails(orderItem?._id)}
-                      >
-                        Details
-                      </Button>
-                      {orderItem?.orderStatus === "pending" && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleCancelOrder(orderItem?._id)}
-                        >
-                          Cancel
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <h3 className="text-lg font-semibold mb-2">No Orders Yet</h3>
-          <p className="text-muted-foreground">Start shopping for your gym equipment today!</p>
-        </div>
-      )}
-    </div>
-  );
-}
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useDispatch, useSelector } from 'react-redux';
+import { useToast } from '@/components/ui/use-toast';
+import { updateUsername, initiateEmailUpdate, verifyEmailUpdate, resendEmailOtp, cancelEmailVerification, changePassword } from '@/store/auth-slice';
+import { Loader2, Mail, Lock, User, CheckCircle, XCircle, Edit2 } from 'lucide-react';
 
 function ShoppingAccount() {
-  const { user } = useSelector((state) => state.auth);
+  const { user, isLoading } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const { toast } = useToast();
   const [formData, setFormData] = useState({
-    username: user?.userName || "",
-    currentPassword: "",
-    newPassword: "",
+    username: user?.userName || '',
+    email: user?.email || '',
+    newEmail: '',
+    currentPassword: '',
+    newPassword: '',
+    otp: '',
   });
+  const [pendingEmail, setPendingEmail] = useState(user?.pendingEmail || null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isEmailVerificationMode, setIsEmailVerificationMode] = useState(false);
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
 
-  // Check if user is logged in
+  useEffect(() => {
+    setPendingEmail(user?.pendingEmail || null);
+    setFormData((prev) => ({
+      ...prev,
+      username: user?.userName || '',
+      email: user?.email || '',
+    }));
+    setIsEmailVerificationMode(!!user?.pendingEmail);
+  }, [user]);
+
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <h3 className="text-lg font-semibold mb-2">Please Log In</h3>
-        <p className="text-muted-foreground">You need to log in to view your account settings and order history.</p>
+        <p className="text-muted-foreground">You need to log in to view your account settings.</p>
       </div>
     );
   }
 
-  const handleUpdateAccount = async (e) => {
-    e.preventDefault();
+  const handleUpdateUsername = async () => {
+    if (!formData.username) {
+      toast({ title: 'Please enter a username', variant: 'destructive' });
+      return;
+    }
+
     try {
-      const response = await fetch(`/api/user/update/${user.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // Ensure cookies are sent
-        body: JSON.stringify({
-          userName: formData.username,
-          currentPassword: formData.currentPassword,
-          newPassword: formData.newPassword,
-        }),
-      });
-      const result = await response.json();
+      const result = await dispatch(updateUsername(formData.username)).unwrap();
       if (result.success) {
-        dispatch(updateUser({ userName: formData.username }));
-        toast({
-          title: "Account updated successfully",
-        });
-        setFormData({
-          ...formData,
-          currentPassword: "",
-          newPassword: "",
-        });
+        setIsEditingUsername(false);
+        toast({ title: 'Username updated successfully', className: 'bg-green-500 text-white' });
       } else {
-        console.error("Update failed:", result);
-        toast({
-          title: result.message || "Failed to update account",
-          variant: "destructive",
-        });
+        toast({ title: result.message || 'Failed to update username', variant: 'destructive' });
       }
     } catch (error) {
-      console.error("Update error:", error);
-      toast({
-        title: "Error updating account",
-        variant: "destructive",
-      });
+      toast({ title: 'Error updating username', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleInitiateEmailUpdate = async () => {
+    if (!formData.newEmail) {
+      toast({ title: 'Please enter a new email address', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const result = await dispatch(initiateEmailUpdate(formData.newEmail)).unwrap();
+      if (result.success) {
+        setPendingEmail(result.user.pendingEmail);
+        setIsEmailVerificationMode(true);
+        toast({ title: 'OTP sent to your new email' });
+      } else {
+        toast({ title: result.message || 'Failed to initiate email update', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Error initiating email update', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleVerifyEmail = async () => {
+    if (!formData.otp) {
+      toast({ title: 'Please enter the OTP', variant: 'destructive' });
+      return;
+    }
+
+    setIsVerifying(true);
+    try {
+      const result = await dispatch(verifyEmailUpdate(formData.otp)).unwrap();
+      if (result.success) {
+        setPendingEmail(null);
+        setIsEmailVerificationMode(false);
+        setFormData((prev) => ({ ...prev, email: result.user.email, newEmail: '', otp: '' }));
+        toast({ title: result.message, className: 'bg-green-500 text-white' });
+      } else {
+        toast({ title: result.message || 'Failed to verify email', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Error verifying email', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    try {
+      const result = await dispatch(resendEmailOtp()).unwrap();
+      if (result.success) {
+        toast({ title: result.message, className: 'bg-green-500 text-white' });
+      } else {
+        toast({ title: result.message || 'Failed to resend OTP', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Error resending OTP', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!formData.currentPassword || !formData.newPassword) {
+      toast({ title: 'Please provide both passwords', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const result = await dispatch(changePassword({
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword,
+      })).unwrap();
+      if (result.success) {
+        toast({ title: 'Password updated successfully', className: 'bg-green-500 text-white' });
+        setFormData((prev) => ({ ...prev, currentPassword: '', newPassword: '' }));
+      } else {
+        toast({ title: result.message || 'Failed to update password', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Error updating password', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleCancelEmailVerification = async () => {
+    setIsEmailVerificationMode(false);
+    setFormData((prev) => ({ ...prev, newEmail: '', otp: '' }));
+    setPendingEmail(null);
+
+    try {
+      const result = await dispatch(cancelEmailVerification()).unwrap();
+      if (result.success) {
+        toast({ title: 'Email verification cancelled', className: 'bg-green-500 text-white' });
+      } else {
+        toast({ title: result.message || 'Failed to cancel verification', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Error cancelling verification', description: error.message, variant: 'destructive' });
     }
   };
 
   return (
-    <div className="flex flex-col">
-      <div className="relative h-[300px] w-full overflow-hidden">
-        {/* Replace img with placeholder */}
-        <div className="h-full w-full bg-gray-200" />
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      <div className="relative h-[250px] w-full overflow-hidden">
+        <div className="h-full w-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+          <h1 className="text-4xl font-bold text-white flex items-center gap-2">
+            <User className="h-8 w-8" />
+            Account Settings
+          </h1>
+        </div>
       </div>
-      <div className="container mx-auto grid grid-cols-1 gap-8 py-8">
-        <div className="flex flex-col rounded-lg border bg-background p-6 shadow-sm">
-          <Tabs defaultValue="orders">
-            <TabsList>
-              <TabsTrigger value="orders">Orders</TabsTrigger>
-              <TabsTrigger value="address">Address</TabsTrigger>
-              <TabsTrigger value="settings">Account Settings</TabsTrigger>
-            </TabsList>
-            <TabsContent value="orders">
-              <ModifiedShoppingOrders />
-            </TabsContent>
-            <TabsContent value="address">
-              <Address />
-            </TabsContent>
-            <TabsContent value="settings">
-              <div className="max-w-md mt-4">
-                <h3 className="text-lg font-semibold mb-4">Update Account</h3>
+
+      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
+          {isEmailVerificationMode ? (
+            <div className="space-y-6">
+              <h3 className="text-2xl font-semibold text-gray-800 flex items-center gap-2">
+                <Mail className="h-6 w-6 text-blue-600" />
+                Verify Your Email
+              </h3>
+              <p className="text-gray-600">
+                An OTP has been sent to <span className="font-medium">{pendingEmail}</span>.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="otp" className="text-gray-700 font-medium flex items-center gap-2">
+                    OTP
+                  </Label>
+                  <Input
+                    id="otp"
+                    type="text"
+                    placeholder="Enter 6-digit OTP"
+                    value={formData.otp}
+                    onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleVerifyEmail}
+                    disabled={isVerifying || isLoading}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
+                  >
+                    {isVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                    Verify Email
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelEmailVerification}
+                    disabled={isLoading}
+                    className="flex-1 flex items-center justify-center gap-2"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Cancel
+                  </Button>
+                </div>
+                <Button
+                  variant="link"
+                  onClick={handleResendOtp}
+                  disabled={isLoading}
+                  className="w-full text-blue-600 hover:underline"
+                >
+                  Resend OTP
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <User className="h-6 w-6 text-blue-600" />
+                  Your Details
+                </h3>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="username">Username</Label>
-                    <Input
-                      id="username"
-                      value={formData.username}
-                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                    />
+                    <Label className="text-gray-700 font-medium flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Username
+                    </Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input
+                        value={formData.username}
+                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                        disabled={!isEditingUsername}
+                        className={isEditingUsername ? '' : 'bg-gray-100'}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (isEditingUsername) handleUpdateUsername();
+                          else setIsEditingUsername(true);
+                        }}
+                        disabled={isLoading}
+                        className="flex items-center gap-1"
+                      >
+                        {isEditingUsername ? (
+                          isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />
+                        ) : (
+                          <Edit2 className="h-4 w-4" />
+                        )}
+                        {isEditingUsername ? 'Save' : 'Edit'}
+                      </Button>
+                    </div>
                   </div>
                   <div>
-                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <Label className="text-gray-700 font-medium flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      Email
+                    </Label>
+                    <Input value={formData.email} disabled className="mt-1 bg-gray-100" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <Mail className="h-5 w-5 text-blue-600" />
+                  Update Email
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="newEmail" className="text-gray-700 font-medium flex items-center gap-2">
+                      New Email
+                    </Label>
+                    <Input
+                      id="newEmail"
+                      type="email"
+                      placeholder="Enter new email address"
+                      value={formData.newEmail}
+                      onChange={(e) => setFormData({ ...formData, newEmail: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleInitiateEmailUpdate}
+                    disabled={isLoading}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                    Update Email
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-blue-600" />
+                  Change Password
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="currentPassword" className="text-gray-700 font-medium flex items-center gap-2">
+                      Current Password
+                    </Label>
                     <Input
                       id="currentPassword"
                       type="password"
+                      placeholder="Enter current password"
                       value={formData.currentPassword}
                       onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
+                      className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="newPassword">New Password</Label>
+                    <Label htmlFor="newPassword" className="text-gray-700 font-medium flex items-center gap-2">
+                      New Password
+                    </Label>
                     <Input
                       id="newPassword"
                       type="password"
+                      placeholder="Enter new password"
                       value={formData.newPassword}
                       onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+                      className="mt-1"
                     />
                   </div>
-                  <Button onClick={handleUpdateAccount}>Update Account</Button>
+                  <Button
+                    onClick={handleChangePassword}
+                    disabled={isLoading}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                    Change Password
+                  </Button>
                 </div>
               </div>
-            </TabsContent>
-          </Tabs>
+            </div>
+          )}
         </div>
       </div>
     </div>

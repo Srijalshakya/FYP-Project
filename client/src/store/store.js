@@ -3,6 +3,7 @@ import authReducer from "./auth-slice";
 import adminProductsSlice from "./admin/products-slice";
 import adminOrderSlice from "./admin/order-slice";
 import userSlice from "./admin/user-slice"; // Updated import path
+import adminDashboardSlice from "./admin/admin-dashboard-slice"; // Add import
 
 import shopProductsSlice from "./shop/products-slice";
 import shopCartSlice from "./shop/cart-slice";
@@ -12,6 +13,9 @@ import shopSearchSlice from "./shop/search-slice";
 import shopReviewSlice from "./shop/review-slice";
 import commonFeatureSlice from "./common-slice/index";
 
+// Import the adminDiscountSlice
+import adminDiscountSlice from "./admin/discount-slice"; // Added import
+
 const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -19,6 +23,7 @@ const store = configureStore({
     adminProducts: adminProductsSlice,
     adminOrder: adminOrderSlice,
     users: userSlice,
+    adminDashboard: adminDashboardSlice, // Add reducer
 
     shopProducts: shopProductsSlice,
     shopCart: shopCartSlice,
@@ -28,6 +33,9 @@ const store = configureStore({
     shopReview: shopReviewSlice,
 
     commonFeature: commonFeatureSlice,
+
+    // Add the adminDiscount reducer
+    adminDiscount: adminDiscountSlice, // Added reducer
   },
 });
 

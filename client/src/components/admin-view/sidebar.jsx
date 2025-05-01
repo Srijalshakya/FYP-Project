@@ -4,6 +4,8 @@ import {
   LayoutDashboard,
   ShoppingBasket,
   Users,
+  Image as ImageIcon,
+  Percent, // Added Percent icon for Discounts
 } from "lucide-react";
 import { Fragment } from "react";
 import { useNavigate } from "react-router-dom";
@@ -11,9 +13,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../ui/sheet";
 
 const adminSidebarMenuItems = [
   {
-    id: "dashboard",
+    id: "new-dashboard",
     label: "Dashboard",
-    path: "/admin/dashboard",
+    path: "/admin/new-dashboard",
     icon: <LayoutDashboard />,
   },
   {
@@ -33,6 +35,18 @@ const adminSidebarMenuItems = [
     label: "Users",
     path: "/admin/users",
     icon: <Users />,
+  },
+  {
+    id: "discounts",
+    label: "Discounts",
+    path: "/admin/discounts",
+    icon: <Percent />, // Added Discounts menu item
+  },
+  {
+    id: "image-uploader",
+    label: "Image Uploader",
+    path: "/admin/dashboard",
+    icon: <ImageIcon />,
   },
 ];
 
@@ -78,7 +92,7 @@ function AdminSideBar({ open, setOpen }) {
       </Sheet>
       <aside className="hidden w-64 flex-col border-r bg-background p-6 lg:flex">
         <div
-          onClick={() => navigate("/admin/dashboard")}
+          onClick={() => navigate("/admin/new-dashboard")}
           className="flex cursor-pointer items-center gap-2"
         >
           <ChartNoAxesCombined size={30} />

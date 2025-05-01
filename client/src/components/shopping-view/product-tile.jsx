@@ -1,8 +1,7 @@
-import { Card, CardContent, CardFooter } from "../ui/card"
-import { Button } from "../ui/button"
-import { Badge } from "../ui/badge"
+import { Card, CardContent, CardFooter } from "../ui/card";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
 
-// Updated category mapping for gym equipment
 const categoryOptionsMap = {
   "strength-training": "Strength Training",
   "cardio-equipment": "Cardio Equipment",
@@ -18,7 +17,7 @@ const categoryOptionsMap = {
   "exercise-bikes": "Exercise Bikes",
   ellipticals: "Ellipticals",
   "rowing-machines": "Rowing Machines",
-}
+};
 
 function ShoppingProductTile({ product, onViewDetails, onAddToCart }) {
   return (
@@ -42,9 +41,12 @@ function ShoppingProductTile({ product, onViewDetails, onAddToCart }) {
             <Badge variant="destructive" className="absolute top-2 left-2">
               Sale
             </Badge>
+          ) : product?.discountPercentage ? (
+            <Badge variant="destructive" className="absolute top-2 left-2">
+              {product.discountPercentage}% OFF
+            </Badge>
           ) : null}
 
-          {/* Equipment Type Badge */}
           <Badge variant="secondary" className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm">
             {categoryOptionsMap[product?.category] || "Equipment"}
           </Badge>
@@ -64,16 +66,28 @@ function ShoppingProductTile({ product, onViewDetails, onAddToCart }) {
             )}
           </div>
           <div className="flex items-baseline gap-2 mt-4">
-            {product?.salePrice > 0 && <span className="text-2xl font-bold text-primary">${product.salePrice}</span>}
-            <span
-              className={`text-xl font-semibold ${product?.salePrice > 0 ? "line-through text-muted-foreground" : "text-primary"}`}
-            >
-              ${product?.price}
-            </span>
-            {product?.salePrice > 0 && (
-              <Badge variant="secondary" className="ml-auto">
-                Save ${(product.price - product.salePrice).toFixed(2)}
-              </Badge>
+            {product?.discountedPrice ? (
+              <>
+                <span className="text-2xl font-bold text-primary">${product.discountedPrice}</span>
+                <span className="text-xl font-semibold line-through text-muted-foreground">
+                  ${product.originalPrice}
+                </span>
+                <Badge variant="secondary" className="ml-auto">
+                  Save ${(product.originalPrice - product.discountedPrice).toFixed(2)}
+                </Badge>
+              </>
+            ) : product?.salePrice > 0 ? (
+              <>
+                <span className="text-2xl font-bold text-primary">${product.salePrice}</span>
+                <span className="text-xl font-semibold line-through text-muted-foreground">
+                  ${product.price}
+                </span>
+                <Badge variant="secondary" className="ml-auto">
+                  Save ${(product.price - product.salePrice).toFixed(2)}
+                </Badge>
+              </>
+            ) : (
+              <span className="text-2xl font-bold text-primary">${product.price}</span>
             )}
           </div>
         </CardContent>
@@ -90,8 +104,7 @@ function ShoppingProductTile({ product, onViewDetails, onAddToCart }) {
         )}
       </CardFooter>
     </Card>
-  )
+  );
 }
 
 export default ShoppingProductTile;
-

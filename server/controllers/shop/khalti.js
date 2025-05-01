@@ -1,6 +1,5 @@
 const axios = require("axios");
 
-// Function to verify Khalti Payment
 async function verifyKhaltiPayment(pidx) {
   const headersList = {
     "Authorization": `Key ${process.env.KHALTI_SECRET_KEY}`,
@@ -18,15 +17,14 @@ async function verifyKhaltiPayment(pidx) {
 
   try {
     const response = await axios.request(reqOptions);
+    console.log("Khalti payment verification response:", response.data);
     return response.data;
-
   } catch (error) {
     console.error("Error verifying Khalti payment:", error.response?.data || error.message);
     throw error;
   }
 }
 
-// Function to initialize Khalti Payment
 async function initializeKhaltiPayment(details) {
   const headersList = {
     "Authorization": `Key ${process.env.KHALTI_SECRET_KEY}`,
@@ -44,6 +42,7 @@ async function initializeKhaltiPayment(details) {
 
   try {
     const response = await axios.request(reqOptions);
+    console.log("Khalti payment initialization response:", response.data);
     return response.data;
   } catch (error) {
     console.error("Error initializing Khalti payment:", error.response?.data || error.message);

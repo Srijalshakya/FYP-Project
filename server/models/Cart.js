@@ -19,6 +19,9 @@ const CartSchema = new mongoose.Schema(
           required: true,
           min: 1,
         },
+        originalPrice: { type: Number, required: true }, // Store original price
+        discountedPrice: { type: Number, default: null }, // Store discounted price
+        discountPercentage: { type: Number, default: null }, // Store discount percentage
       },
     ],
   },

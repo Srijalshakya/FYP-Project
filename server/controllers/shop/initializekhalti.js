@@ -1,61 +1,67 @@
 const express = require("express");
 const router = express.Router();
 const { initializeKhaltiPayment, verifyKhaltiPayment } = require("./khalti");
-const Payment = require("../../models/paymentmodel");
-const PurchasedItem = require("../../models/purchaseitemmodel");
-const productModel = require("../../models/Product");
+const Payment = require("../models/paymentmodel");
+const PurchasedItem = require("../models/purchaseitemmodel");
+const productModel = require("../models/Product");
+const Order = require("../models/Order");
 const mongoose = require("mongoose");
+const sendOrderStatusEmail = require("../utils/sendOrderStatusEmail");
 
-
-// ✅ Route to initialize Khalti payment
 router.post("/initialize-khalti", async (req, res) => {
   try {
-    const { items, website_url, shippingAddress } = req.body;
+    const { items, website_url, return_url, cancel_url, shippingAddress, orderId } = req.body;
     const websiteURL = website_url || "http://localhost:5000";
 
-    // Validate items array
     if (!items || !Array.isArray(items)) {
       return res.status(400).json({ success: false, message: "Invalid items data" });
     }
+    if (!return_url || !cancel_url) {
+      return res.status(400).json({ success: false, message: "return_url and cancel_url are required" });
+    }
+    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ success: false, message: "Invalid or missing orderId" });
+    }
 
-    // Calculate total amount
     const totalAmount = items.reduce((sum, item) => {
       return sum + (item.unitPrice * item.quantity);
     }, 0);
 
-    // Create purchased items
-    const purchasedItems = await Promise.all(items.map(async (item) => {
-      const productData = await productModel.findById(item.itemId);
-      if (!productData) {
-        throw new Error(`Product not found for ID: ${item.itemId}`);
-      }
-      return {
-        productId: item.itemId,
-        name: productData.title,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-      };
-    }));
+    const purchasedItems = await Promise.all(
+      items.map(async (item) => {
+        const productData = await productModel.findById(item.itemId);
+        if (!productData) {
+          throw new Error(`Product not found for ID: ${item.itemId}`);
+        }
+        return {
+          productId: item.itemId,
+          name: productData.title,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        };
+      })
+    );
 
     const purchasedItemData = await PurchasedItem.create({
+      orderId: new mongoose.Types.ObjectId(orderId),
       items: purchasedItems,
-      totalPrice: totalAmount * 100, // Khalti requires paisa
+      totalPrice: totalAmount * 100,
       paymentMethod: "khalti",
-      status: "Completed",
-      shippingAddress // Add shipping address to the purchase
+      status: "pending",
+      shippingAddress,
     });
 
     const payment = await initializeKhaltiPayment({
       amount: totalAmount * 100,
       purchase_order_id: purchasedItemData._id.toString(),
-      purchase_order_name: `Order ${purchasedItemData._id.toString()}`, // Or use first product name
-      return_url: `${process.env.BACKEND_URI}/api/payment/complete-khalti-payment`,
+      purchase_order_name: `Order ${purchasedItemData._id.toString()}`,
+      return_url: return_url,
       website_url: websiteURL,
     });
 
     return res.json({
       success: true,
-      payment_url: payment.payment_url, // Make sure this matches Khalti's response
+      payment_url: payment.payment_url,
       purchase: purchasedItemData,
     });
   } catch (error) {
@@ -64,36 +70,37 @@ router.post("/initialize-khalti", async (req, res) => {
   }
 });
 
-// ✅ Route to verify Khalti payment
-router.get("/complete-khalti-payment", async (req, res) => {
-  const {
-    pidx,
-    txnId,
-    amount,
-    mobile,
-    purchase_order_id,
-    purchase_order_name,
-    transaction_id,
-  } = req.query;
-
+router.post("/verify-khalti-payment", async (req, res) => {
   try {
-    const paymentInfo = await verifyKhaltiPayment(pidx);
+    const { pidx, orderId } = req.body;
 
-    if (
-      paymentInfo?.status !== "Completed" ||
-      paymentInfo.transaction_id !== transaction_id ||
-      Number(paymentInfo.total_amount) !== Number(amount)
-    ) {
+    if (!pidx || !orderId) {
       return res.status(400).json({
         success: false,
-        message: "Incomplete or mismatched payment information",
+        message: "pidx and orderId are required",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid orderId format",
+      });
+    }
+
+    const paymentInfo = await verifyKhaltiPayment(pidx);
+
+    if (paymentInfo?.status !== "Completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Payment not completed",
         paymentInfo,
       });
     }
 
     const purchasedItemData = await PurchasedItem.findOne({
-      _id: new mongoose.Types.ObjectId(purchase_order_id),
-      totalPrice: Number(amount),
+      _id: new mongoose.Types.ObjectId(paymentInfo.purchase_order_id),
+      orderId: new mongoose.Types.ObjectId(orderId),
     });
 
     if (!purchasedItemData) {
@@ -103,24 +110,65 @@ router.get("/complete-khalti-payment", async (req, res) => {
       });
     }
 
-    await PurchasedItem.findByIdAndUpdate(purchase_order_id, {
+    await PurchasedItem.findByIdAndUpdate(paymentInfo.purchase_order_id, {
       $set: { status: "completed" },
     });
 
+    const order = await Order.findById(orderId).populate("userId", "userName email");
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    order.paymentStatus = "completed";
+    order.isPaid = true;
+    order.orderStatus = "confirmed";
+    order.orderUpdateDate = new Date();
+    await order.save();
+
+    for (let item of order.cartItems) {
+      let product = await Product.findById(item.productId);
+      if (product) {
+        product.totalStock -= item.quantity;
+        await product.save();
+      }
+    }
+
+    if (order.cartId) {
+      await Cart.findByIdAndDelete(order.cartId);
+    }
+
     const paymentData = await Payment.create({
       pidx,
-      transactionId: transaction_id,
-      productId: purchase_order_id,
-      amount,
+      transactionId: paymentInfo.transaction_id,
+      productId: paymentInfo.purchase_order_id,
+      amount: paymentInfo.total_amount,
       dataFromVerificationReq: paymentInfo,
-      apiQueryFromUser: req.query,
+      apiQueryFromUser: { pidx, orderId },
       paymentGateway: "khalti",
       status: "success",
     });
 
-    res.json({
+    // Send "Payment Successful" email
+    if (order.userId && order.userId.email) {
+      const emailSent = await sendOrderStatusEmail({
+        email: order.userId.email,
+        userName: order.userId.userName,
+        orderId: order._id,
+        orderStatus: "Payment Successful",
+        equipment: order.cartItems?.[0]?.title || "Your Equipment",
+        triggeredBy: "customer",
+      });
+      if (!emailSent) {
+        console.warn(`Failed to send payment successful email to ${order.userId.email} for order ${order._id}`);
+      }
+    }
+
+    return res.json({
       success: true,
-      message: "Payment Successful",
+      message: "Payment verified and order updated successfully",
       paymentData,
     });
   } catch (error) {

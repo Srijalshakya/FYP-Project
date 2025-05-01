@@ -101,8 +101,6 @@ const orderSchema = new mongoose.Schema({
   orderUpdateDate: {
     type: Date,
   },
-});
+}, { timestamps: true });
 
-const Order = mongoose.model("Order", orderSchema);
-
-module.exports = Order;
+module.exports = mongoose.model("Order", orderSchema);
