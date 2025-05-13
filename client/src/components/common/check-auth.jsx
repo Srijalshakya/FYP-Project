@@ -12,7 +12,7 @@ function CheckAuth({ isAuthenticated, user, children }) {
     if (!isAuthenticated) {
       return <Navigate to="/auth/login" />;
     } else {
-      return <Navigate to={user?.role === "admin" ? "/admin/dashboard" : "/shop/home"} />;
+      return <Navigate to={user?.role === "admin" ? "/admin/new-dashboard" : "/shop/home"} />;
     }
   }
   
@@ -20,7 +20,7 @@ function CheckAuth({ isAuthenticated, user, children }) {
   if (isPublicPath) {
     // Only redirect authenticated users away from auth pages if they try to access them directly
     if (isAuthenticated) {
-      return <Navigate to={user?.role === "admin" ? "/admin/dashboard" : "/shop/home"} />;
+      return <Navigate to={user?.role === "admin" ? "/admin/new-dashboard" : "/shop/home"} />;
     }
     // Allow unauthenticated users to access public paths
     return <>{children}</>;
@@ -37,7 +37,7 @@ function CheckAuth({ isAuthenticated, user, children }) {
   }
   
   if (user?.role === "admin" && location.pathname.includes("/shop")) {
-    return <Navigate to="/admin/dashboard" />;
+    return <Navigate to="/admin/new-dashboard" />;
   }
   
   // If all checks pass, render the children

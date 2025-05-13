@@ -82,6 +82,9 @@ export const checkAuth = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        return rejectWithValue({ message: "Unauthorized: Please log in" });
+      }
       return rejectWithValue(error.response?.data || { message: "Authentication check failed" });
     }
   }
@@ -183,7 +186,7 @@ export const changePassword = createAsyncThunk(
   }
 );
 
-const authSlice = createSlice({
+export const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
@@ -209,7 +212,7 @@ const authSlice = createSlice({
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload.message;
+        state.error = action.payload?.message || "Registration failed";
       })
       // Verify OTP
       .addCase(verifyOtp.pending, (state) => {
@@ -222,7 +225,7 @@ const authSlice = createSlice({
       })
       .addCase(verifyOtp.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload.message;
+        state.error = action.payload?.message || "Verification failed";
       })
       // Login
       .addCase(loginUser.pending, (state) => {
@@ -239,7 +242,7 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.user = null;
         state.isAuthenticated = false;
-        state.error = action.payload.message;
+        state.error = action.payload?.message || "Login failed";
       })
       // Check Auth
       .addCase(checkAuth.pending, (state) => {
@@ -256,7 +259,7 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.user = null;
         state.isAuthenticated = false;
-        state.error = action.payload.message;
+        state.error = action.payload?.message || "Authentication check failed";
       })
       // Logout
       .addCase(logoutUser.pending, (state) => {
@@ -271,7 +274,7 @@ const authSlice = createSlice({
       })
       .addCase(logoutUser.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload.message;
+        state.error = action.payload?.message || "Logout failed";
       })
       // Update Username
       .addCase(updateUsername.pending, (state) => {
@@ -287,7 +290,7 @@ const authSlice = createSlice({
       })
       .addCase(updateUsername.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload.message;
+        state.error = action.payload?.message || "Failed to update username";
       })
       // Initiate Email Update
       .addCase(initiateEmailUpdate.pending, (state) => {
@@ -303,7 +306,7 @@ const authSlice = createSlice({
       })
       .addCase(initiateEmailUpdate.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload.message;
+        state.error = action.payload?.message || "Failed to initiate email update";
       })
       // Verify Email Update
       .addCase(verifyEmailUpdate.pending, (state) => {
@@ -324,7 +327,7 @@ const authSlice = createSlice({
       })
       .addCase(verifyEmailUpdate.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload.message;
+        state.error = action.payload?.message || "Failed to verify email";
       })
       // Resend Email OTP
       .addCase(resendEmailOtp.pending, (state) => {
@@ -337,7 +340,7 @@ const authSlice = createSlice({
       })
       .addCase(resendEmailOtp.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload.message;
+        state.error = action.payload?.message || "Failed to resend OTP";
       })
       // Cancel Email Verification
       .addCase(cancelEmailVerification.pending, (state) => {
@@ -353,7 +356,7 @@ const authSlice = createSlice({
       })
       .addCase(cancelEmailVerification.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload.message;
+        state.error = action.payload?.message || "Failed to cancel email verification";
       })
       // Change Password
       .addCase(changePassword.pending, (state) => {
@@ -366,7 +369,7 @@ const authSlice = createSlice({
       })
       .addCase(changePassword.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload.message;
+        state.error = action.payload?.message || "Failed to change password";
       });
   },
 });

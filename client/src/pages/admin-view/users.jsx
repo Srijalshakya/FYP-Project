@@ -35,7 +35,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 function Popup({ message, type, onClose }) {
   useEffect(() => {
     if (message) {
-      const timer = setTimeout(onClose, 3000); // Auto-close after 3 seconds
+      const timer = setTimeout(onClose, 3000);
       return () => clearTimeout(timer);
     }
   }, [message, onClose]);
@@ -58,39 +58,32 @@ function AdminUsers() {
   const dispatch = useDispatch();
   const { users, isLoading, error } = useSelector((state) => state.users);
 
-  // State for search, filters, and pagination
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [verifiedFilter, setVerifiedFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 10;
 
-  // State for edit modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [formData, setFormData] = useState({ userName: "", password: "" });
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // State for popup
   const [popup, setPopup] = useState({ message: "", type: "" });
 
-  // Show popup with message and type
   const showPopup = (message, type) => {
     setPopup({ message, type });
   };
 
-  // Close popup
   const closePopup = () => {
     setPopup({ message: "", type: "" });
   };
 
-  // Fetch users on mount
   useEffect(() => {
     dispatch(fetchUsers());
   }, [dispatch]);
 
-  // Filter and search users
   const filteredUsers = users?.filter((user) => {
     const matchesSearch =
       user.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -103,14 +96,12 @@ function AdminUsers() {
     return matchesSearch && matchesRole && matchesVerified;
   }) || [];
 
-  // Pagination logic
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
   const paginatedUsers = filteredUsers.slice(
     (currentPage - 1) * usersPerPage,
     currentPage * usersPerPage
   );
 
-  // Handle edit modal
   const handleEditClick = (user) => {
     setSelectedUser(user);
     setFormData({ userName: user.userName, password: "" });
@@ -140,7 +131,7 @@ function AdminUsers() {
         showPopup(`User "${formData.userName || selectedUser.userName}" updated successfully!`, "success");
         setIsEditModalOpen(false);
         setFormData({ userName: "", password: "" });
-        dispatch(fetchUsers());
+        dispatch(fetchUsers()); // Refresh user list
       } else {
         showPopup(result.payload?.message || "Failed to update user.", "error");
       }
@@ -151,7 +142,6 @@ function AdminUsers() {
     }
   };
 
-  // Handle delete user
   const handleDeleteUser = async () => {
     setIsDeleting(true);
     try {
@@ -159,7 +149,7 @@ function AdminUsers() {
       if (deleteUser.fulfilled.match(result)) {
         showPopup(`User "${selectedUser.userName}" deleted successfully!`, "success");
         setIsEditModalOpen(false);
-        dispatch(fetchUsers());
+        dispatch(fetchUsers()); // Refresh user list after deletion
       } else {
         showPopup(result.payload?.message || "Failed to delete user.", "error");
       }
@@ -170,17 +160,14 @@ function AdminUsers() {
     }
   };
 
-  // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, roleFilter, verifiedFilter]);
 
   return (
     <div className="space-y-6 p-6">
-      {/* Popup */}
       <Popup message={popup.message} type={popup.type} onClose={closePopup} />
 
-      {/* Header */}
       <Card>
         <CardHeader>
           <CardTitle className="text-3xl font-bold">User Management</CardTitle>
@@ -188,7 +175,6 @@ function AdminUsers() {
         </CardHeader>
       </Card>
 
-      {/* Search and Filters */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-1/3">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -223,14 +209,12 @@ function AdminUsers() {
         </div>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="p-4 bg-red-100 text-red-700 rounded-lg">
           {error}
         </div>
       )}
 
-      {/* Users Table */}
       <Card>
         <CardContent className="pt-6">
           {isLoading ? (
@@ -291,7 +275,6 @@ function AdminUsers() {
                 </TableBody>
               </Table>
 
-              {/* Pagination */}
               {filteredUsers.length > usersPerPage && (
                 <div className="flex justify-between items-center mt-4">
                   <p className="text-sm text-muted-foreground">
@@ -324,7 +307,6 @@ function AdminUsers() {
         </CardContent>
       </Card>
 
-      {/* Edit User Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent>
           <DialogHeader>

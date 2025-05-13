@@ -16,9 +16,8 @@ const shopReviewRouter = require("./routes/shop/review-routes");
 const shopContactRouter = require("./routes/shop/contact-router");
 const commonFeatureRouter = require("./routes/common/feature-routes");
 const khaltiRouter = require("./routes/shop/khalti-payment-router");
-const adminDiscountRouter = require("./routes/admin/discount-routes"); // Added discount routes
+const adminDiscountRouter = require("./routes/admin/discount-routes");
 
-// Debug environment variables
 console.log('Loaded Environment Variables:');
 console.log('EMAIL_USERNAME:', process.env.EMAIL_USERNAME || 'NOT SET');
 console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'Set (hidden)' : 'NOT SET');
@@ -27,7 +26,6 @@ console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'Set (hidden)' : 'NOT SET');
 console.log('PORT:', process.env.PORT || 'NOT SET');
 console.log('NODE_ENV:', process.env.NODE_ENV || 'NOT SET');
 
-// Validate required environment variables
 if (!process.env.MONGO_URI) {
   console.error('ERROR: MONGO_URI not set. Cannot connect to MongoDB.');
   process.exit(1);
@@ -50,7 +48,6 @@ const allowedOrigins = [
   'https://your-production-domain.com'
 ];
 
-// CORS configuration
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -75,27 +72,23 @@ app.use(
   })
 );
 
-// Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
-// Request logging for debugging
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   next();
 });
 
-// API routes
 const apiRouter = express.Router();
 
-// Debug auth routes
 console.log('Mounting auth routes at /api/auth');
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/admin/products", adminProductsRouter);
 apiRouter.use("/admin/orders", adminOrderRouter);
 apiRouter.use("/admin", adminDashboardRouter);
-apiRouter.use("/admin/discounts", adminDiscountRouter); // Added discount routes
+apiRouter.use("/admin/discounts", adminDiscountRouter);
 apiRouter.use("/shop/products", shopProductsRouter);
 apiRouter.use("/shop/cart", shopCartRouter);
 apiRouter.use("/shop/address", shopAddressRouter);
@@ -108,7 +101,6 @@ apiRouter.use("/payment", khaltiRouter);
 
 app.use("/api", apiRouter);
 
-// Debug all registered routes
 app._router.stack.forEach((middleware) => {
   if (middleware.route) {
     console.log(`Registered route: ${middleware.route.path} [${Object.keys(middleware.route.methods).join(', ')}]`);
@@ -121,12 +113,10 @@ app._router.stack.forEach((middleware) => {
   }
 });
 
-// Health check
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Error handling
 app.use((err, req, res, next) => {
   console.error('Error:', err.message, err.stack);
   res.status(500).json({
@@ -136,7 +126,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// MongoDB connection
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
@@ -148,7 +137,6 @@ mongoose
     process.exit(1);
   });
 
-// Graceful shutdown
 process.on('SIGINT', () => {
   mongoose.connection.close(() => {
     console.log('MongoDB connection closed');

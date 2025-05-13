@@ -50,13 +50,13 @@ export const deleteUser = createAsyncThunk(
   async (userId, { rejectWithValue }) => {
     try {
       const response = await axios.delete(
-        `http://localhost:5000/api/auth/users/${userId}`,
+        `http://localhost:5000/api/auth/users/${userId}`, // Updated endpoint
         { withCredentials: true }
       );
-      if (response.status === 204) {
+      if (response.status === 200 && response.data.success) {
         return userId;
       } else {
-        return rejectWithValue("Unexpected response status: " + response.status);
+        return rejectWithValue(response.data?.message || "Unexpected response status: " + response.status);
       }
     } catch (error) {
       console.error("Delete user error:", error.response?.data || error.message);

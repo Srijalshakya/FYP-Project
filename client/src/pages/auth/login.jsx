@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { loginUser } from "@/store/auth-slice";
 import { loginFormControls } from "@/config";
@@ -37,6 +37,7 @@ function AuthLogin() {
   
   const dispatch = useDispatch();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -50,6 +51,12 @@ function AuthLogin() {
         toast({
           title: data?.payload?.message,
         });
+        const role = data.payload.user?.role;
+        if (role === "admin") {
+          navigate("/admin/new-dashboard");
+        } else {
+          navigate("/shop/home");
+        }
       } else {
         toast({
           title: data?.payload?.message,
@@ -112,9 +119,7 @@ function AuthLogin() {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
-    if (resetPasswordData.otp.length !== 6 || !/^\d+$/.
-
-test(resetPasswordData.otp)) {
+    if (resetPasswordData.otp.length !== 6 || !/^\d+$/.test(resetPasswordData.otp)) {
       toast({
         title: "Invalid OTP",
         description: "Please enter a valid 6-digit OTP",
@@ -124,7 +129,9 @@ test(resetPasswordData.otp)) {
       return;
     }
 
-    if (!/^(?=.*[A-Z])(?=.*[0-9])[A-Za-z0-9]+$/.test(resetPasswordData.newPassword)) {
+    // Updated password regex to match server-side requirement
+    const passwordRegex = /^(?=.*[A-Z])(?=.*[0-9])[A-Za-z0-9]+$/;
+    if (!passwordRegex.test(resetPasswordData.newPassword)) {
       toast({
         title: "Invalid Password",
         description: "Password must contain at least one capital letter, one number, and only letters/numbers",

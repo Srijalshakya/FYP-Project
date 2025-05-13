@@ -3,7 +3,6 @@ const jwt = require("jsonwebtoken");
 const User = require("../../models/User");
 const sendOtpMail = require("../../utils/sendOtpMail");
 
-// Register
 const registerUser = async (req, res) => {
   const { userName, email, password } = req.body;
 
@@ -30,13 +29,16 @@ const registerUser = async (req, res) => {
       });
     }
 
-    const existingUser = await User.findOne({ $or: [{ email }, { userName }] }).lean();
+    const existingUser = await User.findOne({ email }).lean();
     if (existingUser) {
-      if (existingUser.email === email && !existingUser.isVerified) {
+      if (!existingUser.isVerified) {
         const otp = Math.floor(100000 + Math.random() * 900000);
         const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
         await User.updateOne({ email }, { $set: { otp: { code: otp, expiresAt } } });
-        await sendOtpMail(email, otp, userName);
+        const emailSent = await sendOtpMail(email, otp, userName);
+        if (!emailSent) {
+          throw new Error("Failed to send OTP email. Please try again later.");
+        }
         return res.status(200).json({
           success: true,
           message: "Account exists. New OTP sent for verification.",
@@ -44,7 +46,15 @@ const registerUser = async (req, res) => {
       }
       return res.status(400).json({
         success: false,
-        message: existingUser.email === email ? "Email already in use" : "Username already taken",
+        message: "Email already in use",
+      });
+    }
+
+    const existingUserName = await User.findOne({ userName }).lean();
+    if (existingUserName) {
+      return res.status(400).json({
+        success: false,
+        message: "Username already in use. Please choose a different username.",
       });
     }
 
@@ -59,23 +69,46 @@ const registerUser = async (req, res) => {
       otp: { code: otp, expiresAt },
     });
 
-    await newUser.save();
-    await sendOtpMail(email, otp, userName);
+    await newUser.save().catch((dbError) => {
+      console.error("Database save error:", {
+        message: dbError.message,
+        code: dbError.code,
+        stack: dbError.stack,
+        userData: { userName, email },
+      });
+      if (dbError.code === 11000) {
+        const field = Object.keys(dbError.keyValue)[0];
+        if (field === "email") {
+          throw new Error("Email already exists in the database. Please use a different email.");
+        } else if (field === "userName") {
+          throw new Error("Username already exists in the database. Please use a different username.");
+        }
+      }
+      throw new Error("Failed to save user to database. Please check your database connection and try again.");
+    });
+
+    const emailSent = await sendOtpMail(email, otp, userName);
+    if (!emailSent) {
+      throw new Error("Failed to send OTP email. Please try again later.");
+    }
 
     res.status(201).json({
       success: true,
       message: "OTP sent to your email. Please verify.",
     });
   } catch (e) {
-    console.error("Registration error:", e);
+    console.error("Detailed Registration error:", {
+      message: e.message,
+      stack: e.stack,
+      requestBody: req.body,
+    });
     res.status(500).json({
       success: false,
-      message: "Registration failed",
+      message: e.message || "Registration failed due to server error",
     });
   }
 };
 
-// Verify OTP
 const verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
 
@@ -103,11 +136,10 @@ const verifyOtp = async (req, res) => {
     res.status(200).json({ success: true, message: "Email verified successfully" });
   } catch (e) {
     console.error("OTP verification error:", e);
-    res.status(500).json({ success: false, message: "Verification failed" });
+    res.status(500).json({ success: false, message: "Verification failed due to server error" });
   }
 };
 
-// Login
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
@@ -148,16 +180,19 @@ const loginUser = async (req, res) => {
     });
   } catch (e) {
     console.error("Login error:", e);
-    res.status(500).json({ success: false, message: "Login failed" });
+    res.status(500).json({ success: false, message: "Login failed due to server error" });
   }
 };
 
-// Logout
 const logoutUser = (req, res) => {
-  res.clearCookie("token").json({ success: true, message: "Logged out successfully" });
+  try {
+    res.clearCookie("token").json({ success: true, message: "Logged out successfully" });
+  } catch (e) {
+    console.error("Logout error:", e);
+    res.status(500).json({ success: false, message: "Logout failed due to server error" });
+  }
 };
 
-// Resend OTP
 const resendOtp = async (req, res) => {
   const { email } = req.body;
 
@@ -179,12 +214,15 @@ const resendOtp = async (req, res) => {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     await User.updateOne({ email }, { $set: { otp: { code: otp, expiresAt } } });
-    await sendOtpMail(email, otp, user.userName);
+    const emailSent = await sendOtpMail(email, otp, user.userName);
+    if (!emailSent) {
+      throw new Error("Failed to send OTP email. Please try again later.");
+    }
 
     res.status(200).json({ success: true, message: "New OTP sent" });
   } catch (e) {
     console.error("Resend OTP error:", e);
-    res.status(500).json({ success: false, message: "Failed to resend OTP" });
+    res.status(500).json({ success: false, message: "Failed to resend OTP due to server error" });
   }
 };
 
@@ -215,7 +253,7 @@ const forgotPassword = async (req, res) => {
     res.status(200).json({ success: true, message: "Reset OTP sent" });
   } catch (e) {
     console.error("Forgot password error:", e);
-    res.status(500).json({ success: false, message: "Failed to process forgot password" });
+    res.status(500).json({ success: false, message: "Failed to process forgot password due to server error" });
   }
 };
 
@@ -252,7 +290,7 @@ const resetPassword = async (req, res) => {
     res.status(200).json({ success: true, message: "Password reset successfully" });
   } catch (e) {
     console.error("Reset password error:", e);
-    res.status(500).json({ success: false, message: "Failed to reset password" });
+    res.status(500).json({ success: false, message: "Failed to reset password due to server error" });
   }
 };
 
@@ -264,7 +302,7 @@ const authMiddleware = async (req, res, next) => {
 
   const token = req.cookies.token;
   if (!token) {
-    return res.status(401).json({ success: false, message: "Unauthorized" });
+    return res.status(401).json({ success: false, message: "Unauthorized: No token provided" });
   }
 
   try {
@@ -272,7 +310,45 @@ const authMiddleware = async (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(401).json({ success: false, message: "Unauthorized" });
+    console.error("Auth middleware error:", error);
+    res.status(401).json({ success: false, message: "Unauthorized: Invalid token" });
+  }
+};
+
+// Check Auth
+const checkAuth = async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) {
+      return res.status(200).json({
+        success: false,
+        message: "No active session",
+        user: null,
+        isAuthenticated: false,
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "CLIENT_SECRET_KEY");
+    const user = await User.findById(decoded.id).lean();
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Authenticated",
+      user: {
+        id: user._id,
+        email: user.email,
+        userName: user.userName,
+        role: user.role,
+        pendingEmail: user.pendingEmail || null,
+      },
+      isAuthenticated: true,
+    });
+  } catch (e) {
+    console.error("Check auth error:", e);
+    res.status(500).json({ success: false, message: "Authentication check failed due to server error" });
   }
 };
 
@@ -287,7 +363,7 @@ const getAllUsers = async (req, res) => {
     res.status(200).json({ success: true, data: users });
   } catch (e) {
     console.error("Get users error:", e);
-    res.status(500).json({ success: false, message: "Failed to fetch users" });
+    res.status(500).json({ success: false, message: "Failed to fetch users due to server error" });
   }
 };
 
@@ -326,7 +402,7 @@ const updateUser = async (req, res) => {
     });
   } catch (e) {
     console.error("Update user error:", e);
-    res.status(500).json({ success: false, message: "Failed to update user" });
+    res.status(500).json({ success: false, message: "Failed to update user due to server error" });
   }
 };
 
@@ -351,31 +427,7 @@ const deleteUser = async (req, res) => {
     res.status(200).json({ success: true, message: "User deleted" });
   } catch (e) {
     console.error("Delete user error:", e);
-    res.status(500).json({ success: false, message: "Failed to delete user" });
-  }
-};
-
-// Check Auth
-const checkAuth = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).lean();
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-    res.status(200).json({
-      success: true,
-      message: "Authenticated",
-      user: {
-        id: user._id,
-        email: user.email,
-        userName: user.userName,
-        role: user.role,
-        pendingEmail: user.pendingEmail || null,
-      },
-    });
-  } catch (e) {
-    console.error("Check auth error:", e);
-    res.status(500).json({ success: false, message: "Authentication check failed" });
+    res.status(500).json({ success: false, message: "Failed to delete user due to server error" });
   }
 };
 
@@ -395,10 +447,6 @@ const updateUserProfile = async (req, res) => {
     }
 
     if (userName && userName !== user.userName) {
-      const existingUser = await User.findOne({ userName });
-      if (existingUser && existingUser._id.toString() !== userId) {
-        return res.status(400).json({ success: false, message: "Username already taken" });
-      }
       user.userName = userName;
     }
 
@@ -431,7 +479,7 @@ const updateUserProfile = async (req, res) => {
     });
   } catch (e) {
     console.error("Update profile error:", e);
-    res.status(500).json({ success: false, message: "Failed to update profile" });
+    res.status(500).json({ success: false, message: "Failed to update profile due to server error" });
   }
 };
 
@@ -486,7 +534,7 @@ const requestProfileUpdateOtp = async (req, res) => {
     });
   } catch (e) {
     console.error("Request OTP error:", e);
-    res.status(500).json({ success: false, message: "Failed to request OTP" });
+    res.status(500).json({ success: false, message: "Failed to request OTP due to server error" });
   }
 };
 
@@ -533,7 +581,7 @@ const verifyEmailUpdateOtp = async (req, res) => {
     });
   } catch (e) {
     console.error("Verify email OTP error:", e);
-    res.status(500).json({ success: false, message: "Failed to verify email" });
+    res.status(500).json({ success: false, message: "Failed to verify email due to server error" });
   }
 };
 
@@ -561,7 +609,7 @@ const resendEmailUpdateOtp = async (req, res) => {
     res.status(200).json({ success: true, message: "New OTP sent" });
   } catch (e) {
     console.error("Resend OTP error:", e);
-    res.status(500).json({ success: false, message: "Failed to resend OTP" });
+    res.status(500).json({ success: false, message: "Failed to resend OTP due to server error" });
   }
 };
 
@@ -596,7 +644,7 @@ const cancelEmailVerification = async (req, res) => {
     });
   } catch (e) {
     console.error("Cancel verification error:", e);
-    res.status(500).json({ success: false, message: "Failed to cancel verification" });
+    res.status(500).json({ success: false, message: "Failed to cancel verification due to server error" });
   }
 };
 

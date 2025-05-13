@@ -67,6 +67,28 @@ const AuthRegister = () => {
     }
     
     setFormErrors(errors);
+
+    const allFieldsEmpty = !formData.userName.trim() && !formData.email.trim() && !formData.password;
+    
+    if (allFieldsEmpty) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill the form to signup",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (Object.keys(errors).length > 0) {
+      Object.values(errors).forEach((error) => {
+        toast({
+          title: "Validation Error",
+          description: error,
+          variant: "destructive",
+        });
+      });
+    }
+    
     return Object.keys(errors).length === 0;
   };
 
@@ -108,17 +130,22 @@ const AuthRegister = () => {
         setShowOtpInput(true);
         startResendCooldown();
       } else {
-        toast({
-          title: "Registration Failed",
-          description: data.message || "Please try again",
-          variant: "destructive",
-        });
+        throw new Error(data.message || "Registration failed");
       }
     } catch (error) {
       console.error("Registration error:", error);
+      const errorMessage = error.message.includes("Failed to send OTP email")
+        ? "Unable to send verification email. Please check your email address or try again later."
+        : error.message.includes("Failed to save user")
+        ? "Unable to create account due to database issue. Please check your connection and try again later."
+        : error.message.includes("Email already in use")
+        ? "The email is already in use. Please use a different email or log in."
+        : error.message.includes("Username already in use")
+        ? "The username is already in use. Please choose a different username."
+        : error.message || "An unexpected error occurred. Please try again later.";
       toast({
         title: "Registration Error",
-        description: error.message || "An unexpected error occurred. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

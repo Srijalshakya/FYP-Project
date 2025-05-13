@@ -161,31 +161,34 @@ function ShoppingAccount() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <div className="relative h-[250px] w-full overflow-hidden">
-        <div className="h-full w-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
-          <h1 className="text-4xl font-bold text-white flex items-center gap-2">
-            <User className="h-8 w-8" />
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white shadow-sm">
+        <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8">
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <User className="h-6 w-6 text-blue-600" />
             Account Settings
           </h1>
         </div>
       </div>
 
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
+        <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {isEmailVerificationMode ? (
-            <div className="space-y-6">
-              <h3 className="text-2xl font-semibold text-gray-800 flex items-center gap-2">
-                <Mail className="h-6 w-6 text-blue-600" />
-                Verify Your Email
-              </h3>
-              <p className="text-gray-600">
-                An OTP has been sent to <span className="font-medium">{pendingEmail}</span>.
-              </p>
+            <div className="p-6 space-y-6">
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-3">
+                  <Mail className="h-5 w-5 text-blue-600" />
+                  Verify Your Email
+                </h3>
+                <p className="text-gray-600 mt-2">
+                  An OTP has been sent to <span className="font-medium text-gray-800">{pendingEmail}</span>.
+                </p>
+              </div>
+
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="otp" className="text-gray-700 font-medium flex items-center gap-2">
-                    OTP
+                  <Label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-1">
+                    Verification Code
                   </Label>
                   <Input
                     id="otp"
@@ -200,148 +203,154 @@ function ShoppingAccount() {
                   <Button
                     onClick={handleVerifyEmail}
                     disabled={isVerifying || isLoading}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    {isVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                    {isVerifying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
                     Verify Email
                   </Button>
                   <Button
                     variant="outline"
                     onClick={handleCancelEmailVerification}
                     disabled={isLoading}
-                    className="flex-1 flex items-center justify-center gap-2"
+                    className="flex-1"
                   >
-                    <XCircle className="h-4 w-4" />
+                    <XCircle className="h-4 w-4 mr-2" />
                     Cancel
                   </Button>
                 </div>
-                <Button
-                  variant="link"
-                  onClick={handleResendOtp}
-                  disabled={isLoading}
-                  className="w-full text-blue-600 hover:underline"
-                >
-                  Resend OTP
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-8">
-              <div>
-                <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <User className="h-6 w-6 text-blue-600" />
-                  Your Details
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-gray-700 font-medium flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Username
-                    </Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Input
-                        value={formData.username}
-                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                        disabled={!isEditingUsername}
-                        className={isEditingUsername ? '' : 'bg-gray-100'}
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (isEditingUsername) handleUpdateUsername();
-                          else setIsEditingUsername(true);
-                        }}
-                        disabled={isLoading}
-                        className="flex items-center gap-1"
-                      >
-                        {isEditingUsername ? (
-                          isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />
-                        ) : (
-                          <Edit2 className="h-4 w-4" />
-                        )}
-                        {isEditingUsername ? 'Save' : 'Edit'}
-                      </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-gray-700 font-medium flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      Email
-                    </Label>
-                    <Input value={formData.email} disabled className="mt-1 bg-gray-100" />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <Mail className="h-5 w-5 text-blue-600" />
-                  Update Email
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="newEmail" className="text-gray-700 font-medium flex items-center gap-2">
-                      New Email
-                    </Label>
-                    <Input
-                      id="newEmail"
-                      type="email"
-                      placeholder="Enter new email address"
-                      value={formData.newEmail}
-                      onChange={(e) => setFormData({ ...formData, newEmail: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
+                <div className="text-center">
                   <Button
-                    onClick={handleInitiateEmailUpdate}
+                    variant="link"
+                    onClick={handleResendOtp}
                     disabled={isLoading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
+                    className="text-blue-600 hover:text-blue-800 text-sm"
                   >
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-                    Update Email
+                    Didn't receive code? Resend OTP
                   </Button>
                 </div>
               </div>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {/* Personal Details Section */}
+              <div className="p-6">
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3 mb-4">
+                    <User className="h-5 w-5 text-blue-600" />
+                    Personal Information
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="block text-sm font-medium text-gray-700 mb-1">
+                        Username
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={formData.username}
+                          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                          disabled={!isEditingUsername}
+                          className="flex-1"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (isEditingUsername) handleUpdateUsername();
+                            else setIsEditingUsername(true);
+                          }}
+                          disabled={isLoading}
+                          className="w-24"
+                        >
+                          {isEditingUsername ? (
+                            isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />
+                          ) : (
+                            <Edit2 className="h-4 w-4 mr-2" />
+                          )}
+                          {isEditingUsername ? 'Save' : 'Edit'}
+                        </Button>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email Address
+                      </Label>
+                      <Input 
+                        value={formData.email} 
+                        disabled 
+                        className="bg-gray-50 text-gray-600" 
+                      />
+                    </div>
+                  </div>
+                </div>
 
-              <div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                {/* Email Update Section */}
+                <div className="pt-6 border-t border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3 mb-4">
+                    <Mail className="h-5 w-5 text-blue-600" />
+                    Update Email Address
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="newEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                        New Email Address
+                      </Label>
+                      <Input
+                        id="newEmail"
+                        type="email"
+                        placeholder="Enter your new email"
+                        value={formData.newEmail}
+                        onChange={(e) => setFormData({ ...formData, newEmail: e.target.value })}
+                      />
+                    </div>
+                    <Button
+                      onClick={handleInitiateEmailUpdate}
+                      disabled={isLoading || !formData.newEmail}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+                      Update Email
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Password Update Section */}
+              <div className="p-6 bg-gray-50">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3 mb-4">
                   <Lock className="h-5 w-5 text-blue-600" />
                   Change Password
                 </h3>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="currentPassword" className="text-gray-700 font-medium flex items-center gap-2">
+                    <Label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-1">
                       Current Password
                     </Label>
                     <Input
                       id="currentPassword"
                       type="password"
-                      placeholder="Enter current password"
+                      placeholder="Enter your current password"
                       value={formData.currentPassword}
                       onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
-                      className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="newPassword" className="text-gray-700 font-medium flex items-center gap-2">
+                    <Label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
                       New Password
                     </Label>
                     <Input
                       id="newPassword"
                       type="password"
-                      placeholder="Enter new password"
+                      placeholder="Enter your new password"
                       value={formData.newPassword}
                       onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
-                      className="mt-1"
                     />
                   </div>
                   <Button
                     onClick={handleChangePassword}
-                    disabled={isLoading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
+                    disabled={isLoading || !formData.currentPassword || !formData.newPassword}
+                    className="w-full bg-blue-600 hover:bg-blue-700"
                   >
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
                     Change Password
                   </Button>
                 </div>
