@@ -10,7 +10,7 @@ import AdminProducts from "./pages/admin-view/products";
 import AdminOrders from "./pages/admin-view/orders";
 import AdminFeatures from "./pages/admin-view/features";
 import AdminUsers from "./pages/admin-view/users";
-import AdminDiscounts from "./pages/admin-view/discounts"; // Added AdminDiscounts
+import AdminDiscounts from "./pages/admin-view/discounts";
 import NewDashboard from "./pages/admin-view/new-dashboard";
 import ShoppingLayout from "./components/shopping-view/layout";
 import NotFound from "./pages/not-found";
@@ -27,7 +27,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import PaymentSuccessPage from "./pages/shopping-view/payment-success";
 import PaymentCancelPage from "./pages/shopping-view/payment-cancel";
 import KhaltiReturnPage from "./pages/shopping-view/khalti-return";
-import SearchProducts from "./pages/shopping-view/search";
 import OrderSuccessPage from "./pages/shopping-view/OrderSuccessPage";
 import OrderHistory from "./pages/shopping-view/order-history";
 import About from "@/components/shopping-view/About";
@@ -105,7 +104,7 @@ function App() {
           <Route path="orders" element={<AdminOrders />} />
           <Route path="features" element={<AdminFeatures />} />
           <Route path="users" element={<AdminUsers />} />
-          <Route path="discounts" element={<AdminDiscounts />} /> {/* Added Discounts route */}
+          <Route path="discounts" element={<AdminDiscounts />} />
         </Route>
         <Route
           path="/shop"
@@ -120,7 +119,6 @@ function App() {
           <Route path="checkout" element={<ShoppingCheckout />} />
           <Route path="account" element={<ShoppingAccount />} />
           <Route path="khalti-return" element={<KhaltiReturnPage />} />
-          <Route path="search" element={<SearchProducts />} />
           <Route path="order-success/:orderId" element={<OrderSuccessPage />} />
           <Route path="orders" element={<OrderHistory />} />
           <Route path="about" element={<About />} />

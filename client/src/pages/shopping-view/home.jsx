@@ -10,7 +10,6 @@ import { addToCart, fetchCartItems } from "@/store/shop/cart-slice";
 import { useToast } from "@/components/ui/use-toast";
 import ProductDetailsDialog from "@/components/shopping-view/product-details";
 import { getFeatureImages } from "@/store/common-slice";
-import SearchProducts from "@/pages/shopping-view/search";
 import { fetchActiveDiscounts } from "@/store/admin/discount-slice";
 
 const categoriesWithIcon = [

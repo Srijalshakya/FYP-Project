@@ -11,7 +11,6 @@ const shopProductsRouter = require("./routes/shop/products-routes");
 const shopCartRouter = require("./routes/shop/cart-routes");
 const shopAddressRouter = require("./routes/shop/address-routes");
 const shopOrderRouter = require("./routes/shop/order-routes");
-const shopSearchRouter = require("./routes/shop/search-routes");
 const shopReviewRouter = require("./routes/shop/review-routes");
 const shopContactRouter = require("./routes/shop/contact-router");
 const commonFeatureRouter = require("./routes/common/feature-routes");
@@ -45,7 +44,8 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
-  'https://your-production-domain.com'
+  'https://your-production-domain.com',
+  'https://fitmart-backend.vercel.app'
 ];
 
 app.use(
@@ -93,7 +93,6 @@ apiRouter.use("/shop/products", shopProductsRouter);
 apiRouter.use("/shop/cart", shopCartRouter);
 apiRouter.use("/shop/address", shopAddressRouter);
 apiRouter.use("/shop/order", shopOrderRouter);
-apiRouter.use("/shop/search", shopSearchRouter);
 apiRouter.use("/shop/review", shopReviewRouter);
 apiRouter.use("/shop/contact", shopContactRouter);
 apiRouter.use("/common/feature", commonFeatureRouter);
