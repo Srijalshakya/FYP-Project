@@ -178,11 +178,13 @@ function ShoppingHome() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="relative w-full h-full bg-gradient-to-r from-primary to-primary/80 flex items-center justify-center text-white">
-                  <div className="text-center space-y-4">
-                    <h2 className="text-4xl font-bold">{slide.content.description}</h2>
-                    <p className="text-xl">
-                      {slide.content.percentage}% OFF on{" "}
+                <div className="relative w-full h-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center text-white border-2 border-purple-300/50 shadow-xl">
+                  <div className="text-center space-y-6 animate-fade-in-scale px-4">
+                    <h2 className="text-5xl font-extrabold tracking-tight drop-shadow-md">
+                      {slide.content.description}
+                    </h2>
+                    <p className="text-2xl font-medium">
+                      <span className="text-yellow-300">{slide.content.percentage}% OFF</span> on{" "}
                       {slide.content.categories
                         .map(
                           (cat) =>
@@ -190,7 +192,7 @@ function ShoppingHome() {
                         )
                         .join(", ")}
                     </p>
-                    <p className="text-sm">
+                    <p className="text-base font-semibold opacity-80">
                       Ends on {new Date(slide.content.endDate).toLocaleDateString()}
                     </p>
                     <Button
@@ -200,7 +202,7 @@ function ShoppingHome() {
                           "category"
                         )
                       }
-                      className="bg-white text-primary hover:bg-white/90"
+                      className="bg-yellow-400 text-black text-lg font-semibold py-6 px-8 rounded-full hover:bg-yellow-500 hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                     >
                       Shop Now
                     </Button>
