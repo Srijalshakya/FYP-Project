@@ -42,24 +42,6 @@ const featureItems = [
   },
 ]
 
-const teamMembers = [
-  {
-    name: "John Doe",
-    role: "Founder & CEO",
-    image: "https://randomuser.me/api/portraits/men/1.jpg",
-  },
-  {
-    name: "Jane Smith",
-    role: "Head of Sales",
-    image: "https://randomuser.me/api/portraits/women/2.jpg",
-  },
-  {
-    name: "Mike Johnson",
-    role: "Product Manager",
-    image: "https://randomuser.me/api/portraits/men/3.jpg",
-  },
-]
-
 function About() {
   const { toast } = useToast()
   const [formData, setFormData] = useState({
@@ -113,7 +95,7 @@ function About() {
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">About FitMart</h1>
           <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
-            Empowering your fitness journey with the best gym equipment since 2020.
+            Empowering your fitness journey with the best gym equipment since 2024.
           </p>
         </div>
       </motion.section>

@@ -54,7 +54,13 @@ function ShoppingHome() {
     };
 
     sessionStorage.setItem("filters", JSON.stringify(currentFilter));
-    navigate(`/shop/listing`);
+    navigate(`/shop/listing?${section}=${getCurrentItem.id}`);
+  }
+
+  // Add this new function to navigate to the "all equipment" page
+  function handleNavigateToAllEquipment() {
+    sessionStorage.removeItem("filters");
+    navigate("/shop/listing");
   }
 
   function handleGetProductDetails(getCurrentProductId) {
@@ -264,6 +270,7 @@ function ShoppingHome() {
             );
           })}
         </div>
+        {/* Removed the View All Equipment button */}
       </div>
 
       <div className="container mx-auto py-12">

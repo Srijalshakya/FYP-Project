@@ -7,11 +7,11 @@ const getFilteredProducts = async (req, res) => {
 
     let filters = {};
 
-    if (category.length) {
+    if (category && category.length) {
       filters.category = { $in: category.split(",") };
     }
 
-    if (brand.length) {
+    if (brand && brand.length) {
       filters.brand = { $in: brand.split(",") };
     }
 
@@ -41,20 +41,18 @@ const getFilteredProducts = async (req, res) => {
 
     const products = await Product.find(filters).sort(sort);
 
-    // Fetch active discounts
     const currentDate = new Date();
     const activeDiscounts = await Discount.find({
       startDate: { $lte: currentDate },
       endDate: { $gte: currentDate },
     });
 
-    // Apply discounts to products
     const productsWithDiscounts = products.map((product) => {
       const applicableDiscounts = activeDiscounts
         .filter((discount) => discount.categories.includes(product.category))
-        .sort((a, b) => b.percentage - a.percentage); // Sort by percentage (highest first)
+        .sort((a, b) => b.percentage - a.percentage);
 
-      const discount = applicableDiscounts[0]; // Take the highest discount if multiple exist
+      const discount = applicableDiscounts[0];
       if (discount) {
         const discountedPrice = product.price * (1 - discount.percentage / 100);
         return {
@@ -99,14 +97,12 @@ const getProductDetails = async (req, res) => {
       });
     }
 
-    // Fetch active discounts
     const currentDate = new Date();
     const activeDiscounts = await Discount.find({
       startDate: { $lte: currentDate },
       endDate: { $gte: currentDate },
     });
 
-    // Apply discount if applicable
     const applicableDiscounts = activeDiscounts
       .filter((discount) => discount.categories.includes(product.category))
       .sort((a, b) => b.percentage - a.percentage);
