@@ -4,7 +4,7 @@ import { Button } from "../ui/button";
 import { Dialog, DialogContent } from "../ui/dialog";
 import { Separator } from "../ui/separator";
 import { Input } from "../ui/input";
-import { Textarea } from "../ui/textarea"; // Added Textarea for review input
+import { Textarea } from "../ui/textarea";
 import { useDispatch, useSelector } from "react-redux";
 import { useToast } from "../ui/use-toast";
 import { setProductDetails } from "@/store/shop/products-slice";
@@ -27,7 +27,7 @@ function ProductDetailsDialog({ open, onOpenChange, productDetails, onAddToCart 
 
   function handleDialogClose() {
     onOpenChange(false);
-    dispatch(setProductDetails(null)); // Clear product details
+    dispatch(setProductDetails(null));
     setRating(0);
     setReviewMsg("");
   }
@@ -226,7 +226,7 @@ function ProductDetailsDialog({ open, onOpenChange, productDetails, onAddToCart 
                 <span className="text-sm">Your Rating:</span>
                 <StarRatingComponent
                   rating={rating}
-                  onRatingChange={handleRatingChange}
+                  handleRatingChange={handleRatingChange} // Fixed prop name
                   interactive={true}
                 />
               </div>
